@@ -8,24 +8,61 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Custom CSS -->
+    <!-- Custom CSS - Safari Theme -->
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Playfair+Display:wght@400;700&display=swap');
+
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
+            font-family: 'Crimson Text', serif;
+            background: linear-gradient(135deg, #2D1810 0%, #8B4513 50%, #DEB887 100%);
+            background-attachment: fixed;
+            color: #2D1810;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Playfair Display', serif;
+            color: #8B4513;
         }
 
         #map {
             width: 100%;
             height: 100vh;
+            border: 3px solid #8B4513;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
         }
 
         .map-container {
             position: relative;
             width: 100%;
             height: 100vh;
+            background: rgba(222, 184, 135, 0.1);
+        }
+
+        .page-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 2px solid #8B4513;
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 28px;
+            color: #2D1810;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+        }
+
+        .page-header p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            color: #8B4513;
         }
 
         .loading {
@@ -44,12 +81,22 @@
             position: absolute;
             bottom: 20px;
             right: 20px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            border: 2px solid #8B4513;
             z-index: 1000;
-            max-width: 200px;
+            max-width: 220px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend h4 {
+            margin: 0 0 15px 0;
+            color: #2D1810;
+            font-size: 18px;
+            border-bottom: 2px solid #DEB887;
+            padding-bottom: 8px;
         }
 
         .filter-controls {
@@ -95,15 +142,15 @@
         }
 
         .sighting-marker {
-            background-color: #4CAF50;
+            background-color: #8B4513;
         }
 
         .incident-marker {
-            background-color: #f44336;
+            background-color: #DC143C;
         }
 
         .maintenance-marker {
-            background-color: #2196F3;
+            background-color: #DAA520;
         }
 
         .error-message {
@@ -121,6 +168,11 @@
     </style>
 </head>
 <body>
+    <div class="page-header">
+        <h1>Wildlife Tracker Map</h1>
+        <p>Interactive concession mapping with real-time observations</p>
+    </div>
+
     <div class="map-container">
         <div id="loading" class="loading">
             <div>Loading map data...</div>
@@ -200,19 +252,38 @@
             Maintenance: []
         };
 
-        // Custom marker icons
+        // Custom marker icons - Safari theme colors
         const createCustomIcon = (color) => {
             return L.divIcon({
                 className: 'custom-marker',
-                html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
+                html: `<div style="
+                    background-color: ${color};
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    border: 3px solid #2D1810;
+                    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+                    position: relative;
+                ">
+                    <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        width: 8px;
+                        height: 8px;
+                        background-color: #2D1810;
+                        border-radius: 50%;
+                    "></div>
+                </div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
             });
         };
 
-        const sightingIcon = createCustomIcon('#4CAF50');
-        const incidentIcon = createCustomIcon('#f44336');
-        const maintenanceIcon = createCustomIcon('#2196F3');
+        const sightingIcon = createCustomIcon('#8B4513');  // Saddle brown for sightings
+        const incidentIcon = createCustomIcon('#DC143C');   // Crimson for incidents
+        const maintenanceIcon = createCustomIcon('#DAA520'); // Goldenrod for maintenance
 
         // Hide loading message
         function hideLoading() {
@@ -246,11 +317,11 @@
 
                 L.geoJSON(geoJson, {
                     style: {
-                        color: '#8B4513',
-                        weight: 3,
-                        opacity: 0.8,
-                        fillColor: '#DEB887',
-                        fillOpacity: 0.2
+                        color: '#2D1810',     // Dark brown border
+                        weight: 4,
+                        opacity: 0.9,
+                        fillColor: '#DEB887',  // Tan fill
+                        fillOpacity: 0.3
                     }
                 }).addTo(boundaryLayer);
 
@@ -278,19 +349,26 @@
 
                 L.geoJSON(geoJson, {
                     style: {
-                        color: '#000000', // Black roads
-                        weight: 2,
-                        opacity: 0.8
+                        color: '#8B4513', // Saddle brown roads
+                        weight: 3,
+                        opacity: 0.9
                     },
                     onEachFeature: function (feature, layer) {
-                        // Add popup with road name when clicked or hovered
-                        if (feature.properties && feature.properties.name) {
-                            layer.bindPopup(`<strong>${feature.properties.name}</strong>`);
-                            layer.on('mouseover', function() {
-                                layer.openPopup();
+                        // Add popup with road name when clicked
+                        const roadName = feature.properties && (feature.properties.Roads || feature.properties.name);
+                        if (roadName) {
+                            layer.bindPopup(`<strong>${roadName}</strong>`);
+
+                            // Add road label when zoomed in
+                            layer.on('add', function() {
+                                if (map.getZoom() > 12) {
+                                    addRoadLabel(layer, roadName);
+                                }
                             });
-                            layer.on('mouseout', function() {
-                                layer.closePopup();
+
+                            // Update label on zoom
+                            map.on('zoomend', function() {
+                                updateRoadLabels();
                             });
                         }
                     }
@@ -418,6 +496,58 @@
             // Maintenance filter
             document.getElementById('filter-maintenance').addEventListener('change', function(e) {
                 toggleMarkers('Maintenance', e.target.checked);
+            });
+        }
+
+        // Road label management
+        const roadLabels = new Map();
+
+        function addRoadLabel(layer, roadName) {
+            // Remove existing label for this layer
+            if (roadLabels.has(layer)) {
+                map.removeLayer(roadLabels.get(layer));
+            }
+
+            // Get the center of the road geometry
+            const bounds = layer.getBounds();
+            const center = bounds.getCenter();
+
+            // Create label marker
+            const label = L.marker(center, {
+                icon: L.divIcon({
+                    className: 'road-label',
+                    html: `<div style="
+                        background: rgba(255, 255, 255, 0.9);
+                        border: 1px solid #8B4513;
+                        border-radius: 3px;
+                        padding: 2px 6px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        color: #8B4513;
+                        white-space: nowrap;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    ">${roadName}</div>`,
+                    iconSize: null,
+                    iconAnchor: [0, 0]
+                })
+            });
+
+            label.addTo(map);
+            roadLabels.set(layer, label);
+        }
+
+        function updateRoadLabels() {
+            const zoom = map.getZoom();
+            roadLabels.forEach((label, layer) => {
+                if (zoom > 12) {
+                    if (!map.hasLayer(label)) {
+                        label.addTo(map);
+                    }
+                } else {
+                    if (map.hasLayer(label)) {
+                        map.removeLayer(label);
+                    }
+                }
             });
         }
 
