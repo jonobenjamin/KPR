@@ -68,7 +68,7 @@ body {
 }
 
 .map-section {
-    width: 60%; /* Changed from 75% to 60% (3/5) */
+    width: 75%; /* Back to 3/4 width */
     position: relative;
 }
 
@@ -79,7 +79,7 @@ body {
 }
 
 .sidebar {
-    width: 40%; /* Changed from 25% to 40% to match new map width */
+    width: 25%; /* Back to 1/4 width */
     background: rgba(255, 255, 255, 0.95);
     padding: 20px;
     overflow-y: auto;
@@ -168,6 +168,110 @@ body {
 .view-btn:hover {
     background: #DEB887;
     color: #2D1810;
+}
+
+/* View Mode Dropdown */
+.view-select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #8B4513;
+    border-radius: 6px;
+    background: white;
+    color: #2D1810;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Switch Styling */
+.switch-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 120px;
+    height: 40px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #8B4513;
+    transition: .4s;
+    border-radius: 40px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 32px;
+    width: 32px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.switch-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    transition: .4s;
+    pointer-events: none;
+    z-index: 1;
+}
+
+input:checked + .slider {
+    background-color: #DAA520;
+}
+
+input:checked + .slider:before {
+    transform: translateX(80px);
+}
+
+input:checked + .slider .switch-text {
+    content: attr(data-on);
+}
+
+/* Heat map style hotspots */
+.hotspot-heat-1 {
+    background: radial-gradient(circle, rgba(139,69,19,0.8) 0%, rgba(139,69,19,0.4) 50%, rgba(139,69,19,0.1) 100%);
+}
+
+.hotspot-heat-2 {
+    background: radial-gradient(circle, rgba(205,133,63,0.8) 0%, rgba(205,133,63,0.4) 50%, rgba(205,133,63,0.1) 100%);
+}
+
+.hotspot-heat-3 {
+    background: radial-gradient(circle, rgba(218,165,32,0.8) 0%, rgba(218,165,32,0.4) 50%, rgba(218,165,32,0.1) 100%);
+}
+
+.hotspot-heat-4 {
+    background: radial-gradient(circle, rgba(255,140,0,0.8) 0%, rgba(255,140,0,0.4) 50%, rgba(255,140,0,0.1) 100%);
+}
+
+.hotspot-heat-5 {
+    background: radial-gradient(circle, rgba(220,20,60,0.8) 0%, rgba(220,20,60,0.4) 50%, rgba(220,20,60,0.1) 100%);
 }
 
 .species-filter {
@@ -300,13 +404,24 @@ body {
     }
 }
 
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.2);
+    }
+}
+
 .animated-marker {
-    animation: bounce 2s infinite;
+    animation: bounce 1.5s infinite;
     z-index: 1000 !important;
 }
 
 .animated-marker div {
-    animation: bounce 2s infinite;
+    animation: pulse 1.5s infinite;
 }
 
 /* Responsive Design */
