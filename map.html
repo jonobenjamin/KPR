@@ -84,13 +84,13 @@
                     <div class="date-control">
                         <label for="year-select">Year</label>
                         <select id="year-select">
-                            <option value="">All Years</option>
+                            <option value="" selected>All Years</option>
                             <option value="2020">2020</option>
                             <option value="2021">2021</option>
                             <option value="2022">2022</option>
                             <option value="2023">2023</option>
                             <option value="2024">2024</option>
-                            <option value="2025" selected>2025</option>
+                            <option value="2025">2025</option>
                             <option value="2026">2026</option>
                             <option value="2027">2027</option>
                             <option value="2028">2028</option>
@@ -186,6 +186,9 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet Heat Plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <script>
         // Simple Wildlife Tracker Map
@@ -402,7 +405,9 @@
 
                             switch (observation.category) {
                                 case 'Sighting':
-                                    icon = sightingIcon;
+                                    // Use species-specific color for sightings
+                                    const speciesColor = speciesColors[observation.animal] || '#8B4513';
+                                    icon = createCustomIcon(speciesColor);
                                     popupContent = `
                                         <strong>Animal Sighting</strong><br>
                                         <strong>Species:</strong> ${observation.animal || 'Unknown'}<br>
@@ -440,6 +445,9 @@
 
                             const marker = L.marker([observation.latitude, observation.longitude], { icon })
                                 .bindPopup(popupContent);
+
+                            // Add marker to map layer
+                            marker.addTo(observationsLayer);
 
                             // Store marker by type for filtering
                             if (markersByType[observation.category]) {
@@ -575,75 +583,29 @@
             });
 
             if (displayMode === 'hotspot') {
-                // Group observations by location (clustering) with finer granularity
-                const locationGroups = {};
-                filteredObservations.forEach(obs => {
-                    if (obs.latitude && obs.longitude) {
-                        // Use finer clustering (0.002 degrees ≈ 200m)
-                        const key = `${(Math.round(obs.latitude / 0.002) * 0.002).toFixed(4)}_${(Math.round(obs.longitude / 0.002) * 0.002).toFixed(4)}`;
-                        if (!locationGroups[key]) {
-                            locationGroups[key] = {
-                                lat: Math.round(obs.latitude / 0.002) * 0.002,
-                                lng: Math.round(obs.longitude / 0.002) * 0.002,
-                                observations: []
-                            };
+                // Create heat map using Leaflet.heat plugin
+                const points = filteredObservations
+                    .filter(obs => obs.latitude && obs.longitude)
+                    .map(obs => [obs.latitude, obs.longitude, 1]); // [lat, lng, intensity]
+
+                if (points.length > 0) {
+                    const heatLayer = L.heatLayer(points, {
+                        radius: 35,      // size of each hotspot
+                        blur: 30,        // smoothness / glow
+                        maxZoom: 17,
+                        minOpacity: 0.35,
+                        // blue → green → yellow → red
+                        gradient: {
+                            0.0: '#2c7bb6',
+                            0.25: '#00a6ca',
+                            0.45: '#00ccbc',
+                            0.6: '#90eb9d',
+                            0.75: '#ffff8c',
+                            0.9: '#f9d057',
+                            1.0: '#d7191c'
                         }
-                        locationGroups[key].observations.push(obs);
-                    }
-                });
-
-                // Create heat map style hotspots with color ramp
-                Object.values(locationGroups).forEach(group => {
-                    const count = group.observations.length;
-
-                    // Green to Red color ramp based on density (1-5 levels)
-                    let heatLevel = 1;
-                    if (count >= 10) heatLevel = 5;      // Red - very high density
-                    else if (count >= 7) heatLevel = 4;   // Orange - high density
-                    else if (count >= 5) heatLevel = 3;   // Yellow/Gold - medium density
-                    else if (count >= 3) heatLevel = 2;   // Lime Green - low-medium density
-                    // Level 1 = Dark Green - low density
-
-                    // Size based on count (no numbers displayed)
-                    const size = Math.min(25 + count * 6, 80);
-
-                    const hotspotIcon = L.divIcon({
-                        className: `hotspot-heat-${heatLevel}`,
-                        html: `<div style="
-                            width: ${size}px;
-                            height: ${size}px;
-                            border-radius: 50%;
-                            box-shadow: 0 0 ${size/4}px rgba(0,0,0,0.2);
-                        "></div>`,
-                        iconSize: [size, size],
-                        iconAnchor: [size/2, size/2]
-                    });
-
-                    // Create detailed popup content
-                    let popupContent = `<strong>Hotspot Activity</strong><br>`;
-                    popupContent += `<strong>Total Observations:</strong> ${count}<br>`;
-                    popupContent += `<strong>Location:</strong> ${group.lat.toFixed(4)}, ${group.lng.toFixed(4)}<br><br>`;
-
-                    // Group by type for summary
-                    const typeCount = {};
-                    group.observations.forEach(obs => {
-                        const type = obs.category === 'Sighting' ? (obs.animal || 'Unknown Species') :
-                                   obs.category === 'Incident' ? (obs.incident_type || 'Unknown Incident') :
-                                   (obs.maintenance_type || 'Unknown Maintenance');
-                        typeCount[type] = (typeCount[type] || 0) + 1;
-                    });
-
-                    Object.entries(typeCount).forEach(([type, count]) => {
-                        popupContent += `<strong>${type}:</strong> ${count}<br>`;
-                    });
-
-                    popupContent += `<br><em>Click marker for detailed list</em>`;
-
-                    const marker = L.marker([group.lat, group.lng], { icon: hotspotIcon })
-                        .bindPopup(popupContent);
-
-                    marker.addTo(observationsLayer);
-                });
+                    }).addTo(observationsLayer);
+                }
             } else {
                 // Show individual markers (actual locations)
                 filteredObservations.forEach(observation => {
@@ -752,30 +714,19 @@
                 if (obs.category === 'Sighting' && isRecent && matchesSpecies) {
                     console.log('Adding latest sighting marker:', obs);
 
+                    // Black bouncing marker
                     const animatedIcon = L.divIcon({
-                        className: 'animated-marker',
+                        className: 'animated-marker black-bounce',
                         html: `<div style="
-                            background-color: #FFD700;
-                            width: 40px;
-                            height: 40px;
+                            background-color: #000000;
+                            width: 20px;
+                            height: 20px;
                             border-radius: 50%;
-                            border: 4px solid #FF4500;
-                            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+                            border: 2px solid #333333;
                             animation: bounce 1.5s infinite;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">
-                            <div style="
-                                width: 16px;
-                                height: 16px;
-                                background-color: #FF4500;
-                                border-radius: 50%;
-                                animation: pulse 1.5s infinite;
-                            "></div>
-                        </div>`,
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20]
+                        "></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
@@ -802,30 +753,19 @@
 
             allObservations.forEach(obs => {
                 if (obs.category === 'Maintenance' && new Date(obs.timestamp) > oneWeekAgo) {
+                    // Black bouncing marker
                     const animatedIcon = L.divIcon({
-                        className: 'animated-marker',
+                        className: 'animated-marker black-bounce',
                         html: `<div style="
-                            background-color: #32CD32;
-                            width: 40px;
-                            height: 40px;
+                            background-color: #000000;
+                            width: 20px;
+                            height: 20px;
                             border-radius: 50%;
-                            border: 4px solid #228B22;
-                            box-shadow: 0 0 20px rgba(50, 205, 50, 0.8);
+                            border: 2px solid #333333;
                             animation: bounce 1.5s infinite;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">
-                            <div style="
-                                width: 16px;
-                                height: 16px;
-                                background-color: #228B22;
-                                border-radius: 50%;
-                                animation: pulse 1.5s infinite;
-                            "></div>
-                        </div>`,
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20]
+                        "></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
@@ -848,30 +788,19 @@
 
             allObservations.forEach(obs => {
                 if (obs.category === 'Incident' && new Date(obs.timestamp) > oneWeekAgo) {
+                    // Black bouncing marker
                     const animatedIcon = L.divIcon({
-                        className: 'animated-marker',
+                        className: 'animated-marker black-bounce',
                         html: `<div style="
-                            background-color: #FF6347;
-                            width: 40px;
-                            height: 40px;
+                            background-color: #000000;
+                            width: 20px;
+                            height: 20px;
                             border-radius: 50%;
-                            border: 4px solid #DC143C;
-                            box-shadow: 0 0 20px rgba(255, 99, 71, 0.8);
+                            border: 2px solid #333333;
                             animation: bounce 1.5s infinite;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">
-                            <div style="
-                                width: 16px;
-                                height: 16px;
-                                background-color: #DC143C;
-                                border-radius: 50%;
-                                animation: pulse 1.5s infinite;
-                            "></div>
-                        </div>`,
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20]
+                        "></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
