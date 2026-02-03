@@ -145,8 +145,6 @@
                     <label for="latest-sightings-toggle">Show Latest Sightings (This Week)</label>
                 </div>
 
-                <!-- Debug button -->
-                <button onclick="showLatestSightings()" style="margin-top: 10px; padding: 5px 10px; background: #8B4513; color: white; border: none; border-radius: 4px; cursor: pointer;">Debug: Force Show Latest</button>
             </div>
 
             <!-- Maintenance Stats -->
@@ -189,6 +187,9 @@
 
     <!-- Leaflet Heat Plugin -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <!-- Leaflet Text Path Plugin -->
+    <script src="https://unpkg.com/leaflet-textpath@1.2.0/leaflet.textpath.js"></script>
 
     <script>
         // Simple Wildlife Tracker Map
@@ -355,17 +356,35 @@
                         if (roadName) {
                             layer.bindPopup(`<strong>${roadName}</strong>`);
 
-                            // Add road label when zoomed in
-                            layer.on('add', function() {
-                                if (map.getZoom() > 8) { // Lower zoom threshold
-                                    addRoadLabel(layer, roadName);
-                                }
+                            // Add text-on-path for road names
+                            layer.setText(roadName, {
+                                repeat: false,        // one label per road
+                                center: true,         // center on line
+                                offset: 5,           // distance from line
+                                attributes: {
+                                    fill: '#000',
+                                    'font-size': '11px',
+                                    'font-family': 'Arial',
+                                    'font-weight': 'normal'
+                                },
+                                below: false         // text above the path
                             });
 
-                            // Update label on zoom
-                            map.on('zoomend', function() {
-                                updateRoadLabels();
-                            });
+                            // Control visibility based on zoom
+                            const updateTextVisibility = () => {
+                                const zoom = map.getZoom();
+                                if (zoom > 10) {
+                                    layer.showText();
+                                } else {
+                                    layer.hideText();
+                                }
+                            };
+
+                            // Initial visibility check
+                            updateTextVisibility();
+
+                            // Update on zoom
+                            map.on('zoomend', updateTextVisibility);
                         }
                     }
                 }).addTo(roadsLayer);
@@ -399,6 +418,16 @@
                         lng: obs.longitude
                     })));
 
+                    // Debug: Check timestamp formats and ranges
+                    const timestamps = data.data.map(obs => obs.timestamp);
+                    console.log('All timestamps:', timestamps);
+                    const dates = timestamps.map(ts => new Date(ts));
+                    console.log('Parsed dates:', dates);
+                    const now = new Date();
+                    const oneWeekAgo = new Date();
+                    oneWeekAgo.setDate(now.getDate() - 7);
+                    console.log('Now:', now, 'One week ago:', oneWeekAgo);
+
                     data.data.forEach(observation => {
                         if (observation.latitude && observation.longitude) {
                             let icon, popupContent;
@@ -406,7 +435,8 @@
                             switch (observation.category) {
                                 case 'Sighting':
                                     // Use species-specific color for sightings
-                                    const speciesColor = speciesColors[observation.animal] || '#8B4513';
+                                    const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
+                                    const speciesColor = speciesColors[animalName] || '#8B4513';
                                     icon = createCustomIcon(speciesColor);
                                     popupContent = `
                                         <strong>Animal Sighting</strong><br>
@@ -501,8 +531,8 @@
 
         function clearLatestMarkers() {
             latestMarkers.forEach(marker => {
-                if (observationsLayer.hasLayer(marker)) {
-                    observationsLayer.removeLayer(marker);
+                if (map.hasLayer(marker)) {
+                    map.removeLayer(marker);
                 }
             });
             latestMarkers = [];
@@ -712,7 +742,7 @@
                 const matchesSpecies = !selectedSpecies || obs.animal === selectedSpecies;
 
                 if (obs.category === 'Sighting' && isRecent && matchesSpecies) {
-                    console.log('Adding latest sighting marker:', obs);
+                    console.log('Adding latest sighting marker:', obs, 'Date check:', obsDate, '>', oneWeekAgo, '=', isRecent);
 
                     // Black bouncing marker
                     const animatedIcon = L.divIcon({
@@ -737,7 +767,7 @@
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(observationsLayer);
+                    marker.addTo(map); // Add directly to map for latest markers
                     latestMarkers.push(marker);
                     markerCount++;
                     console.log('Added latest sighting marker', markerCount, 'at', obs.latitude, obs.longitude);
@@ -776,7 +806,7 @@
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(observationsLayer);
+                    marker.addTo(map); // Add directly to map for latest markers
                     latestMarkers.push(marker);
                 }
             });
@@ -811,7 +841,7 @@
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(observationsLayer);
+                    marker.addTo(map); // Add directly to map for latest markers
                     latestMarkers.push(marker);
                 }
             });
@@ -887,107 +917,6 @@
         }
 
         // Road label management
-        const roadLabels = new Map();
-
-        function addRoadLabel(layer, roadName) {
-            // Remove existing label for this layer
-            if (roadLabels.has(layer)) {
-                map.removeLayer(roadLabels.get(layer));
-            }
-
-            // Get the bounds of the road geometry
-            const bounds = layer.getBounds();
-            const center = bounds.getCenter();
-
-            // Calculate road orientation to position label along the road
-            const northEast = bounds.getNorthEast();
-            const southWest = bounds.getSouthWest();
-
-            // Determine if road is more horizontal or vertical
-            const width = Math.abs(northEast.lng - southWest.lng);
-            const height = Math.abs(northEast.lat - southWest.lat);
-
-            let labelPosition;
-            if (width > height) {
-                // Horizontal road - place label in center
-                labelPosition = center;
-            } else {
-                // Vertical road - place label in center
-                labelPosition = center;
-            }
-
-            // Create label marker positioned along the road
-            const label = L.marker(labelPosition, {
-                icon: L.divIcon({
-                    className: 'road-label',
-                    html: `<div style="
-                        background: rgba(255, 255, 255, 0.95);
-                        border: 1px solid #8B4513;
-                        border-radius: 4px;
-                        padding: 3px 8px;
-                        font-size: 12px;
-                        font-weight: bold;
-                        color: #2D1810;
-                        white-space: nowrap;
-                        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-                        backdrop-filter: blur(2px);
-                        transform: rotate(-2deg);
-                    ">${roadName}</div>`,
-                    iconSize: null,
-                    iconAnchor: [0, -5] // Position above the road
-                })
-            });
-
-            label.addTo(map);
-            roadLabels.set(layer, label);
-        }
-
-        function updateRoadLabels() {
-            const zoom = map.getZoom();
-            const labelsToShow = [];
-
-            // Clear all existing labels first
-            roadLabels.forEach((label, layer) => {
-                if (map.hasLayer(label)) {
-                    map.removeLayer(label);
-                }
-            });
-
-            // Only show labels at appropriate zoom levels and prevent overlaps
-            if (zoom > 11) { // Higher threshold to prevent crowding
-                const shownLabels = [];
-
-                // Sort roads by length (show labels for longer roads first)
-                const sortedRoads = Array.from(roadLabels.entries()).sort((a, b) => {
-                    const boundsA = a[0].getBounds();
-                    const boundsB = b[0].getBounds();
-                    const lengthA = map.distance(boundsA.getNorthEast(), boundsA.getSouthWest());
-                    const lengthB = map.distance(boundsB.getNorthEast(), boundsB.getSouthWest());
-                    return lengthB - lengthA; // Longer roads first
-                });
-
-                sortedRoads.forEach(([layer, label]) => {
-                    const bounds = layer.getBounds();
-                    const center = bounds.getCenter();
-
-                    // Check if this label would overlap with existing labels
-                    let overlaps = false;
-                    for (const shown of shownLabels) {
-                        const distance = map.distance(center, shown);
-                        if (distance < 500) { // Minimum 500m separation between labels
-                            overlaps = true;
-                            break;
-                        }
-                    }
-
-                    // Only show label if it doesn't overlap
-                    if (!overlaps) {
-                        label.addTo(map);
-                        shownLabels.push(center);
-                    }
-                });
-            }
-        }
 
         // Start the map
         initMap();
