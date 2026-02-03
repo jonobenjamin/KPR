@@ -208,11 +208,26 @@
             Maintenance: []
         };
 
+        // Species color mapping for legend
+        const speciesColors = {
+            'elephant': '#8B4513',    // Saddle brown
+            'lion': '#DC143C',        // Crimson
+            'leopard': '#DAA520',     // Goldenrod
+            'buffalo': '#228B22',     // Forest green
+            'giraffe': '#FF6347',     // Tomato
+            'zebra': '#000000',       // Black
+            'wild-dog': '#8A2BE2',    // Blue violet
+            'hyena': '#696969',       // Dim gray
+            'cheetah': '#FFD700',     // Gold
+            'hippo': '#4682B4'        // Steel blue
+        };
+
         // Current view state
         let currentView = 'sightings';
         let displayMode = 'actual'; // 'actual' or 'hotspot'
         let allObservations = [];
         let latestMarkers = [];
+        let speciesLegend = null;
 
         // Custom marker icons - Safari theme colors
         const createCustomIcon = (color) => {
@@ -323,7 +338,7 @@
 
                             // Add road label when zoomed in
                             layer.on('add', function() {
-                                if (map.getZoom() > 10) { // Lower zoom threshold
+                                if (map.getZoom() > 8) { // Lower zoom threshold
                                     addRoadLabel(layer, roadName);
                                 }
                             });
@@ -461,6 +476,39 @@
             latestMarkers = [];
         }
 
+        function showSpeciesLegend() {
+            // Remove existing legend
+            if (speciesLegend) {
+                map.removeControl(speciesLegend);
+            }
+
+            // Create new legend
+            speciesLegend = L.control({ position: 'topright' });
+
+            speciesLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'species-legend');
+                div.innerHTML = `
+                    <h4>Species Legend</h4>
+                    ${Object.entries(speciesColors).map(([species, color]) => `
+                        <div class="species-item">
+                            <div class="species-dot" style="background-color: ${color}"></div>
+                            <span class="species-name">${species.replace('-', ' ')}</span>
+                        </div>
+                    `).join('')}
+                `;
+                return div;
+            };
+
+            speciesLegend.addTo(map);
+        }
+
+        function hideSpeciesLegend() {
+            if (speciesLegend) {
+                map.removeControl(speciesLegend);
+                speciesLegend = null;
+            }
+        }
+
         function applyFilters() {
             // Clear all markers first
             observationsLayer.clearLayers();
@@ -524,15 +572,16 @@
                 Object.values(locationGroups).forEach(group => {
                     const count = group.observations.length;
 
-                    // Color ramp based on density (1-5 levels)
+                    // Green to Red color ramp based on density (1-5 levels)
                     let heatLevel = 1;
-                    if (count >= 10) heatLevel = 5;
-                    else if (count >= 7) heatLevel = 4;
-                    else if (count >= 5) heatLevel = 3;
-                    else if (count >= 3) heatLevel = 2;
+                    if (count >= 10) heatLevel = 5;      // Red - very high density
+                    else if (count >= 7) heatLevel = 4;   // Orange - high density
+                    else if (count >= 5) heatLevel = 3;   // Yellow/Gold - medium density
+                    else if (count >= 3) heatLevel = 2;   // Lime Green - low-medium density
+                    // Level 1 = Dark Green - low density
 
-                    // Size based on count
-                    const size = Math.min(30 + count * 8, 100);
+                    // Size based on count (no numbers displayed)
+                    const size = Math.min(25 + count * 6, 80);
 
                     const hotspotIcon = L.divIcon({
                         className: `hotspot-heat-${heatLevel}`,
@@ -540,17 +589,10 @@
                             width: ${size}px;
                             height: ${size}px;
                             border-radius: 50%;
-                            border: 3px solid rgba(45, 24, 16, 0.8);
-                            box-shadow: 0 0 ${size/2}px rgba(139, 69, 19, 0.6);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            color: white;
-                            font-weight: bold;
-                            font-size: ${Math.min(12 + count, 18)}px;
-                            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-                            backdrop-filter: blur(2px);
-                        ">${count}</div>`,
+                            border: 2px solid rgba(45, 24, 16, 0.9);
+                            box-shadow: 0 0 ${size/3}px rgba(0,0,0,0.4);
+                            backdrop-filter: blur(1px);
+                        "></div>`,
                         iconSize: [size, size],
                         iconAnchor: [size/2, size/2]
                     });
@@ -616,10 +658,16 @@
                                 break;
                         }
 
-                        const marker = L.marker([observation.latitude, observation.longitude], { icon })
-                            .bindPopup(popupContent);
+                            // For actual locations, use species-specific colors
+                            if (displayMode === 'actual' && observation.category === 'Sighting') {
+                                const speciesColor = speciesColors[observation.animal] || '#8B4513';
+                                icon = createCustomIcon(speciesColor);
+                            }
 
-                        marker.addTo(observationsLayer);
+                            const marker = L.marker([observation.latitude, observation.longitude], { icon })
+                                .bindPopup(popupContent);
+
+                            marker.addTo(observationsLayer);
                     }
                 });
             }
@@ -631,14 +679,20 @@
         }
 
         function applyLatestFilters() {
+            console.log('Applying latest filters for view:', currentView);
             clearLatestMarkers();
 
             if (currentView === 'sightings' && document.getElementById('latest-sightings-toggle').checked) {
+                console.log('Showing latest sightings');
                 showLatestSightings();
             } else if (currentView === 'maintenance' && document.getElementById('latest-maintenance-toggle').checked) {
+                console.log('Showing latest maintenance');
                 showLatestMaintenance();
             } else if (currentView === 'incidents' && document.getElementById('latest-incidents-toggle').checked) {
+                console.log('Showing latest incidents');
                 showLatestIncidents();
+            } else {
+                console.log('No latest filters active');
             }
         }
 
@@ -650,6 +704,7 @@
 
             console.log('Showing latest sightings, total observations:', allObservations.length);
             console.log('One week ago:', oneWeekAgo);
+            let markerCount = 0;
 
             allObservations.forEach(obs => {
                 const obsDate = new Date(obs.timestamp);
@@ -695,10 +750,12 @@
 
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
+                    markerCount++;
+                    console.log('Added latest sighting marker', markerCount, 'at', obs.latitude, obs.longitude);
                 }
             });
 
-            console.log('Latest markers added:', latestMarkers.length);
+            console.log('Total latest sighting markers created:', markerCount);
         }
 
         function showLatestMaintenance() {
@@ -811,16 +868,23 @@
             document.getElementById('view-mode-select').addEventListener('change', function() {
                 currentView = this.value;
 
-                // Show/hide appropriate controls
-                document.getElementById('species-group').style.display =
-                    currentView === 'sightings' ? 'block' : 'none';
-                document.getElementById('maintenance-group').style.display =
-                    currentView === 'maintenance' ? 'block' : 'none';
-                document.getElementById('incidents-group').style.display =
-                    currentView === 'incidents' ? 'block' : 'none';
+                    // Show/hide appropriate controls
+                    document.getElementById('species-group').style.display =
+                        currentView === 'sightings' ? 'block' : 'none';
+                    document.getElementById('maintenance-group').style.display =
+                        currentView === 'maintenance' ? 'block' : 'none';
+                    document.getElementById('incidents-group').style.display =
+                        currentView === 'incidents' ? 'block' : 'none';
 
-                // Reapply filters
-                applyFilters();
+                    // Show/hide species legend for actual locations mode
+                    if (displayMode === 'actual' && currentView === 'sightings') {
+                        showSpeciesLegend();
+                    } else {
+                        hideSpeciesLegend();
+                    }
+
+                    // Reapply filters
+                    applyFilters();
             });
 
             // Display mode switch (Hotspots/Actual)
@@ -830,6 +894,13 @@
                 // Update switch text
                 const switchText = this.parentElement.querySelector('.switch-text');
                 switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
+
+                // Show/hide species legend for actual locations mode
+                if (displayMode === 'actual' && currentView === 'sightings') {
+                    showSpeciesLegend();
+                } else {
+                    hideSpeciesLegend();
+                }
 
                 applyFilters();
             });
@@ -888,7 +959,7 @@
         function updateRoadLabels() {
             const zoom = map.getZoom();
             roadLabels.forEach((label, layer) => {
-                if (zoom > 10) { // Lower zoom threshold to show labels earlier
+                if (zoom > 8) { // Lower zoom threshold to show labels earlier
                     if (!map.hasLayer(label)) {
                         label.addTo(map);
                     }
