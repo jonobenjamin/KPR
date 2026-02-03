@@ -270,7 +270,7 @@
         async function loadRoads() {
             try {
                 console.log('Loading roads...');
-                const response = await fetch('data/geojson/roads.geojson');
+                const response = await fetch('data/geojson/KPR_roads.geojson');
                 if (!response.ok) throw new Error(`Roads file not found: ${response.status}`);
 
                 const geoJson = await response.json();
