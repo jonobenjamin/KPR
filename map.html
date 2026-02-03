@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wildlife Tracker Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+
+        .sighting-marker {
+            background-color: #4CAF50;
+        }
+
+        .incident-marker {
+            background-color: #f44336;
+        }
+
+        .maintenance-marker {
+            background-color: #2196F3;
+        }
+
+        .error-message {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="map-container">
+        <div id="loading" class="loading">
+            <div>Loading map data...</div>
+        </div>
+        <div id="map"></div>
+
+        <div class="legend">
+            <h4>Legend</h4>
+            <div class="legend-item">
+                <div class="legend-color sighting-marker"></div>
+                <span>Animal Sighting</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color incident-marker"></div>
+                <span>Incident</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color maintenance-marker"></div>
+                <span>Maintenance</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'https://your-backend-url.vercel.app'; // Replace with your actual backend URL
+        const API_KEY = 'your-api-key'; // Replace with your actual API key
+
+        // Simple authentication function
+        function getAuthHeaders() {
+            return {
+                'x-api-key': API_KEY,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        // Initialize map
+        const map = L.map('map').setView([0, 0], 10); // Default center, will be updated when data loads
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        // Layer groups for different data types
+        const boundaryLayer = L.layerGroup().addTo(map);
+        const roadsLayer = L.layerGroup().addTo(map);
+        const observationsLayer = L.layerGroup().addTo(map);
+
+        // Custom marker icons
+        const createCustomIcon = (color) => {
+            return L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        };
+
+        const sightingIcon = createCustomIcon('#4CAF50');
+        const incidentIcon = createCustomIcon('#f44336');
+        const maintenanceIcon = createCustomIcon('#2196F3');
+
+        // Hide loading message
+        function hideLoading() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.style.display = 'none';
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<strong>Error:</strong> ${message}`;
+            document.body.appendChild(errorDiv);
+
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 5000);
+        }
+
+        // Load concession boundary
+        async function loadBoundary() {
+            try {
+                console.log('Loading concession boundary...');
+                const response = await fetch(`${API_BASE_URL}/api/map/boundary`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) throw new Error(`Boundary API returned ${response.status}`);
+
+                const geoJson = await response.json();
+                console.log('Boundary data loaded:', geoJson);
+
+                L.geoJSON(geoJson, {
+                    style: {
+                        color: '#8B4513',
+                        weight: 3,
+                        opacity: 0.8,
+                        fillColor: '#DEB887',
+                        fillOpacity: 0.2
+                    }
+                }).addTo(boundaryLayer);
+
+                // Fit map to boundary bounds
+                if (geoJson.features && geoJson.features.length > 0) {
+                    const bounds = L.geoJSON(geoJson).getBounds();
+                    map.fitBounds(bounds, { padding: [20, 20] });
+                }
+
+            } catch (error) {
+                console.error('Error loading boundary:', error);
+                showError('Failed to load concession boundary data');
+            }
+        }
+
+        // Load roads
+        async function loadRoads() {
+            try {
+                console.log('Loading roads...');
+                const response = await fetch(`${API_BASE_URL}/api/map/roads`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) throw new Error(`Roads API returned ${response.status}`);
+
+                const geoJson = await response.json();
+                console.log('Roads data loaded:', geoJson);
+
+                L.geoJSON(geoJson, {
+                    style: {
+                        color: '#654321',
+                        weight: 2,
+                        opacity: 0.7
+                    }
+                }).addTo(roadsLayer);
+
+            } catch (error) {
+                console.error('Error loading roads:', error);
+                showError('Failed to load roads data');
+            }
+        }
+
+        // Load observations
+        async function loadObservations() {
+            try {
+                console.log('Loading observations...');
+                const response = await fetch(`${API_BASE_URL}/api/observations`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) throw new Error(`Observations API returned ${response.status}`);
+
+                const data = await response.json();
+                console.log('Observations data loaded:', data);
+
+                if (data.success && data.data) {
+                    data.data.forEach(observation => {
+                        if (observation.latitude && observation.longitude) {
+                            let icon, popupContent;
+
+                            switch (observation.category) {
+                                case 'Sighting':
+                                    icon = sightingIcon;
+                                    popupContent = `
+                                        <strong>Animal Sighting</strong><br>
+                                        Animal: ${observation.animal || 'Unknown'}<br>
+                                        Time: ${new Date(observation.timestamp).toLocaleString()}
+                                    `;
+                                    break;
+                                case 'Incident':
+                                    icon = incidentIcon;
+                                    popupContent = `
+                                        <strong>Incident</strong><br>
+                                        Type: ${observation.incident_type || 'Unknown'}<br>
+                                        Time: ${new Date(observation.timestamp).toLocaleString()}
+                                    `;
+                                    break;
+                                case 'Maintenance':
+                                    icon = maintenanceIcon;
+                                    popupContent = `
+                                        <strong>Maintenance</strong><br>
+                                        Type: ${observation.maintenance_type || 'Unknown'}<br>
+                                        Time: ${new Date(observation.timestamp).toLocaleString()}
+                                    `;
+                                    break;
+                                default:
+                                    icon = sightingIcon;
+                                    popupContent = `
+                                        <strong>Observation</strong><br>
+                                        Category: ${observation.category}<br>
+                                        Time: ${new Date(observation.timestamp).toLocaleString()}
+                                    `;
+                            }
+
+                            L.marker([observation.latitude, observation.longitude], { icon })
+                                .bindPopup(popupContent)
+                                .addTo(observationsLayer);
+                        }
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error loading observations:', error);
+                showError('Failed to load observation data');
+            }
+        }
+
+        // Initialize map data loading
+        async function initMap() {
+            try {
+                await Promise.all([
+                    loadBoundary(),
+                    loadRoads(),
+                    loadObservations()
+                ]);
+                hideLoading();
+                console.log('Map initialization complete');
+            } catch (error) {
+                console.error('Error initializing map:', error);
+                hideLoading();
+                showError('Failed to initialize map data. Check your API key and backend URL.');
+            }
+        }
+
+        // Start loading
+        initMap();
+    </script>
+</body>
+</html>
