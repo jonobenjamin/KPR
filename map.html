@@ -49,6 +49,32 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             z-index: 1000;
+            max-width: 200px;
+        }
+
+        .filter-controls {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .filter-controls h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .filter-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-checkbox {
+            margin-right: 8px;
         }
 
         .legend-item {
@@ -115,6 +141,22 @@
                 <div class="legend-color maintenance-marker"></div>
                 <span>Maintenance</span>
             </div>
+
+            <div class="filter-controls">
+                <h4>Filters</h4>
+                <div class="filter-item">
+                    <input type="checkbox" id="filter-sighting" class="filter-checkbox" checked>
+                    <label for="filter-sighting">Show Sightings</label>
+                </div>
+                <div class="filter-item">
+                    <input type="checkbox" id="filter-incident" class="filter-checkbox" checked>
+                    <label for="filter-incident">Show Incidents</label>
+                </div>
+                <div class="filter-item">
+                    <input type="checkbox" id="filter-maintenance" class="filter-checkbox" checked>
+                    <label for="filter-maintenance">Show Maintenance</label>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -150,6 +192,13 @@
         const boundaryLayer = L.layerGroup().addTo(map);
         const roadsLayer = L.layerGroup().addTo(map);
         const observationsLayer = L.layerGroup().addTo(map);
+
+        // Store markers by type for filtering
+        const markersByType = {
+            Sighting: [],
+            Incident: [],
+            Maintenance: []
+        };
 
         // Custom marker icons
         const createCustomIcon = (color) => {
@@ -229,9 +278,21 @@
 
                 L.geoJSON(geoJson, {
                     style: {
-                        color: '#654321',
+                        color: '#000000', // Black roads
                         weight: 2,
-                        opacity: 0.7
+                        opacity: 0.8
+                    },
+                    onEachFeature: function (feature, layer) {
+                        // Add popup with road name when clicked or hovered
+                        if (feature.properties && feature.properties.name) {
+                            layer.bindPopup(`<strong>${feature.properties.name}</strong>`);
+                            layer.on('mouseover', function() {
+                                layer.openPopup();
+                            });
+                            layer.on('mouseout', function() {
+                                layer.closePopup();
+                            });
+                        }
                     }
                 }).addTo(roadsLayer);
 
@@ -292,9 +353,14 @@
                                     `;
                             }
 
-                            L.marker([observation.latitude, observation.longitude], { icon })
-                                .bindPopup(popupContent)
-                                .addTo(observationsLayer);
+                            const marker = L.marker([observation.latitude, observation.longitude], { icon })
+                                .bindPopup(popupContent);
+
+                            // Store marker by type for filtering
+                            if (markersByType[observation.category]) {
+                                markersByType[observation.category].push(marker);
+                                marker.addTo(observationsLayer); // Show by default
+                            }
                         }
                     });
                 }
@@ -322,8 +388,42 @@
             }
         }
 
+        // Filter functions
+        function toggleMarkers(type, show) {
+            markersByType[type].forEach(marker => {
+                if (show) {
+                    if (!observationsLayer.hasLayer(marker)) {
+                        marker.addTo(observationsLayer);
+                    }
+                } else {
+                    if (observationsLayer.hasLayer(marker)) {
+                        observationsLayer.removeLayer(marker);
+                    }
+                }
+            });
+        }
+
+        // Set up filter event listeners
+        function setupFilters() {
+            // Sighting filter
+            document.getElementById('filter-sighting').addEventListener('change', function(e) {
+                toggleMarkers('Sighting', e.target.checked);
+            });
+
+            // Incident filter
+            document.getElementById('filter-incident').addEventListener('change', function(e) {
+                toggleMarkers('Incident', e.target.checked);
+            });
+
+            // Maintenance filter
+            document.getElementById('filter-maintenance').addEventListener('change', function(e) {
+                toggleMarkers('Maintenance', e.target.checked);
+            });
+        }
+
         // Start the map
         initMap();
+        setupFilters();
     </script>
 </body>
 </html>
