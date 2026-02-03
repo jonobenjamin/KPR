@@ -476,6 +476,16 @@ input:checked + .slider .switch-text {
     z-index: 10001 !important;
 }
 
+.black-bounce {
+    z-index: 10000 !important;
+    position: relative;
+}
+
+.black-bounce div {
+    animation: bounce 1.5s infinite;
+    z-index: 10001 !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .main-content {
