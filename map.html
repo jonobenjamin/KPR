@@ -118,32 +118,33 @@
         </div>
     </div>
 
-    <!-- Configuration -->
-    <script src="config.js"></script>
-
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // Wait for config to load, then initialize map
-        function initializeMap(API_BASE_URL, API_KEY) {
+        // Simple Wildlife Tracker Map
+        // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
 
-            // Simple authentication function
-            function getAuthHeaders() {
-                return {
-                    'x-api-key': API_KEY,
-                    'Content-Type': 'application/json'
-                };
-            }
+        // Configuration
+        const API_BASE_URL = 'https://wildlife-tracker-gxz5.vercel.app';
+        const API_KEY = '98394a83034f3db48e5acd3ef54bd622c5748ca5bb4fb3ff39c052319711c9a9';
 
-            // Initialize map
-            const map = L.map('map').setView([0, 0], 10); // Default center, will be updated when data loads
+        // Simple authentication function
+        function getAuthHeaders() {
+            return {
+                'x-api-key': API_KEY,
+                'Content-Type': 'application/json'
+            };
+        }
 
-            // Add OpenStreetMap tiles
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 18,
-            }).addTo(map);
+        // Initialize map
+        const map = L.map('map').setView([-18.8, 23.8], 10); // Center on concession area
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18,
+        }).addTo(map);
 
         // Layer groups for different data types
         const boundaryLayer = L.layerGroup().addTo(map);
@@ -184,14 +185,12 @@
             }, 5000);
         }
 
-        // Load concession boundary
+        // Load concession boundary from local file
         async function loadBoundary() {
             try {
                 console.log('Loading concession boundary...');
-                const response = await fetch(`${API_BASE_URL}/api/map/boundary`, {
-                    headers: getAuthHeaders()
-                });
-                if (!response.ok) throw new Error(`Boundary API returned ${response.status}`);
+                const response = await fetch('data/geojson/boundary.geojson');
+                if (!response.ok) throw new Error(`Boundary file not found: ${response.status}`);
 
                 const geoJson = await response.json();
                 console.log('Boundary data loaded:', geoJson);
@@ -218,14 +217,12 @@
             }
         }
 
-        // Load roads
+        // Load roads from local file
         async function loadRoads() {
             try {
                 console.log('Loading roads...');
-                const response = await fetch(`${API_BASE_URL}/api/map/roads`, {
-                    headers: getAuthHeaders()
-                });
-                if (!response.ok) throw new Error(`Roads API returned ${response.status}`);
+                const response = await fetch('data/geojson/roads.geojson');
+                if (!response.ok) throw new Error(`Roads file not found: ${response.status}`);
 
                 const geoJson = await response.json();
                 console.log('Roads data loaded:', geoJson);
@@ -321,35 +318,12 @@
             } catch (error) {
                 console.error('Error initializing map:', error);
                 hideLoading();
-                showError('Failed to initialize map data. Check your API key and backend URL.');
+                showError('Failed to initialize map data. Check your connection and try again.');
             }
         }
-}
 
-        function initMapWhenConfigLoaded() {
-            if (typeof window.MAP_CONFIG === 'undefined') {
-                // Config not loaded yet, wait a bit
-                setTimeout(initMapWhenConfigLoaded, 100);
-                return;
-            }
-
-            // Use config values
-            const API_BASE_URL = window.MAP_CONFIG.API_BASE_URL;
-            const API_KEY = window.MAP_CONFIG.API_KEY;
-
-            initializeMap(API_BASE_URL, API_KEY);
-        }
-
-        // Fallback config if config.js fails to load
-        if (typeof window.MAP_CONFIG === 'undefined') {
-            window.MAP_CONFIG = {
-                API_BASE_URL: 'https://wildlife-tracker-gxz5.vercel.app',
-                API_KEY: '98394a83034f3db48e5acd3ef54bd622c5748ca5bb4fb3ff39c052319711c9a9'
-            };
-        }
-
-        // Start the initialization process
-        initMapWhenConfigLoaded();
+        // Start the map
+        initMap();
     </script>
 </body>
 </html>
