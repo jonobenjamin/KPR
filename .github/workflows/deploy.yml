@@ -15,10 +15,10 @@ jobs:
 
     - name: Create config.js from secrets
       run: |
-        cat > html/config.js << EOF
+        cat > config.js << EOF
         // Wildlife Tracker Map Configuration
         // Generated from GitHub secrets during deployment
-        
+
         window.MAP_CONFIG = {
             API_BASE_URL: '${{ secrets.VERCEL_URL }}',
             API_KEY: '${{ secrets.API_KEY }}'
@@ -29,4 +29,4 @@ jobs:
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./html
+        publish_dir: ./
