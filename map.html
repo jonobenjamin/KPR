@@ -83,7 +83,20 @@
                     </div>
                     <div class="date-control">
                         <label for="year-select">Year</label>
-                        <input type="number" id="year-select" placeholder="2025" min="2020" max="2030">
+                        <select id="year-select">
+                            <option value="">All Years</option>
+                            <option value="2020">2020</option>
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024">2024</option>
+                            <option value="2025" selected>2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                            <option value="2029">2029</option>
+                            <option value="2030">2030</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -131,6 +144,9 @@
                     <input type="checkbox" id="latest-sightings-toggle">
                     <label for="latest-sightings-toggle">Show Latest Sightings (This Week)</label>
                 </div>
+
+                <!-- Debug button -->
+                <button onclick="showLatestSightings()" style="margin-top: 10px; padding: 5px 10px; background: #8B4513; color: white; border: none; border-radius: 4px; cursor: pointer;">Debug: Force Show Latest</button>
             </div>
 
             <!-- Maintenance Stats -->
@@ -368,9 +384,17 @@
 
                 const data = await response.json();
                 console.log('Observations data loaded:', data);
+                console.log('Number of observations received:', data.data ? data.data.length : 0);
 
                 if (data.success && data.data) {
                     allObservations = data.data; // Store all observations
+                    console.log('Sample observations:', data.data.slice(0, 3).map(obs => ({
+                        category: obs.category,
+                        timestamp: obs.timestamp,
+                        animal: obs.animal,
+                        lat: obs.latitude,
+                        lng: obs.longitude
+                    })));
 
                     data.data.forEach(observation => {
                         if (observation.latitude && observation.longitude) {
@@ -589,9 +613,7 @@
                             width: ${size}px;
                             height: ${size}px;
                             border-radius: 50%;
-                            border: 2px solid rgba(45, 24, 16, 0.9);
-                            box-shadow: 0 0 ${size/3}px rgba(0,0,0,0.4);
-                            backdrop-filter: blur(1px);
+                            box-shadow: 0 0 ${size/4}px rgba(0,0,0,0.2);
                         "></div>`,
                         iconSize: [size, size],
                         iconAnchor: [size/2, size/2]
@@ -694,6 +716,8 @@
             } else {
                 console.log('No latest filters active');
             }
+
+            console.log('Latest markers after filtering:', latestMarkers.length);
         }
 
         function showLatestSightings() {
@@ -703,7 +727,21 @@
             const selectedSpecies = document.getElementById('species-select').value;
 
             console.log('Showing latest sightings, total observations:', allObservations.length);
-            console.log('One week ago:', oneWeekAgo);
+            console.log('One week ago:', oneWeekAgo.toISOString());
+
+            // Check if we have any recent sightings
+            const recentSightings = allObservations.filter(obs =>
+                obs.category === 'Sighting' &&
+                new Date(obs.timestamp) > oneWeekAgo
+            );
+            console.log('Recent sightings found:', recentSightings.length);
+            console.log('Recent sighting details:', recentSightings.map(obs => ({
+                timestamp: obs.timestamp,
+                animal: obs.animal,
+                lat: obs.latitude,
+                lng: obs.longitude
+            })));
+
             let markerCount = 0;
 
             allObservations.forEach(obs => {
@@ -928,27 +966,46 @@
                 map.removeLayer(roadLabels.get(layer));
             }
 
-            // Get the center of the road geometry
+            // Get the bounds of the road geometry
             const bounds = layer.getBounds();
             const center = bounds.getCenter();
 
-            // Create label marker
-            const label = L.marker(center, {
+            // Calculate road orientation to position label along the road
+            const northEast = bounds.getNorthEast();
+            const southWest = bounds.getSouthWest();
+
+            // Determine if road is more horizontal or vertical
+            const width = Math.abs(northEast.lng - southWest.lng);
+            const height = Math.abs(northEast.lat - southWest.lat);
+
+            let labelPosition;
+            if (width > height) {
+                // Horizontal road - place label in center
+                labelPosition = center;
+            } else {
+                // Vertical road - place label in center
+                labelPosition = center;
+            }
+
+            // Create label marker positioned along the road
+            const label = L.marker(labelPosition, {
                 icon: L.divIcon({
                     className: 'road-label',
                     html: `<div style="
-                        background: rgba(255, 255, 255, 0.9);
+                        background: rgba(255, 255, 255, 0.95);
                         border: 1px solid #8B4513;
-                        border-radius: 3px;
-                        padding: 2px 6px;
-                        font-size: 11px;
+                        border-radius: 4px;
+                        padding: 3px 8px;
+                        font-size: 12px;
                         font-weight: bold;
-                        color: #8B4513;
+                        color: #2D1810;
                         white-space: nowrap;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                        backdrop-filter: blur(2px);
+                        transform: rotate(-2deg);
                     ">${roadName}</div>`,
                     iconSize: null,
-                    iconAnchor: [0, 0]
+                    iconAnchor: [0, -5] // Position above the road
                 })
             });
 
@@ -958,17 +1015,49 @@
 
         function updateRoadLabels() {
             const zoom = map.getZoom();
+            const labelsToShow = [];
+
+            // Clear all existing labels first
             roadLabels.forEach((label, layer) => {
-                if (zoom > 8) { // Lower zoom threshold to show labels earlier
-                    if (!map.hasLayer(label)) {
-                        label.addTo(map);
-                    }
-                } else {
-                    if (map.hasLayer(label)) {
-                        map.removeLayer(label);
-                    }
+                if (map.hasLayer(label)) {
+                    map.removeLayer(label);
                 }
             });
+
+            // Only show labels at appropriate zoom levels and prevent overlaps
+            if (zoom > 11) { // Higher threshold to prevent crowding
+                const shownLabels = [];
+
+                // Sort roads by length (show labels for longer roads first)
+                const sortedRoads = Array.from(roadLabels.entries()).sort((a, b) => {
+                    const boundsA = a[0].getBounds();
+                    const boundsB = b[0].getBounds();
+                    const lengthA = map.distance(boundsA.getNorthEast(), boundsA.getSouthWest());
+                    const lengthB = map.distance(boundsB.getNorthEast(), boundsB.getSouthWest());
+                    return lengthB - lengthA; // Longer roads first
+                });
+
+                sortedRoads.forEach(([layer, label]) => {
+                    const bounds = layer.getBounds();
+                    const center = bounds.getCenter();
+
+                    // Check if this label would overlap with existing labels
+                    let overlaps = false;
+                    for (const shown of shownLabels) {
+                        const distance = map.distance(center, shown);
+                        if (distance < 500) { // Minimum 500m separation between labels
+                            overlaps = true;
+                            break;
+                        }
+                    }
+
+                    // Only show label if it doesn't overlap
+                    if (!overlaps) {
+                        label.addTo(map);
+                        shownLabels.push(center);
+                    }
+                });
+            }
         }
 
         // Start the map
