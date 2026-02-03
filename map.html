@@ -188,9 +188,6 @@
     <!-- Leaflet Heat Plugin -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
-    <!-- Leaflet Text Path Plugin -->
-    <script src="https://unpkg.com/leaflet-textpath@1.2.0/leaflet.textpath.js"></script>
-
     <script>
         // Simple Wildlife Tracker Map
         // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
@@ -344,7 +341,7 @@
                 const geoJson = await response.json();
                 console.log('Roads data loaded:', geoJson);
 
-                L.geoJSON(geoJson, {
+                const roadsGeoJson = L.geoJSON(geoJson, {
                     style: {
                         color: '#8B4513', // Saddle brown roads
                         weight: 3,
@@ -355,39 +352,12 @@
                         const roadName = feature.properties && (feature.properties.Roads || feature.properties.name);
                         if (roadName) {
                             layer.bindPopup(`<strong>${roadName}</strong>`);
-
-                            // Add text-on-path for road names
-                            layer.setText(roadName, {
-                                repeat: false,        // one label per road
-                                center: true,         // center on line
-                                offset: 5,           // distance from line
-                                attributes: {
-                                    fill: '#000',
-                                    'font-size': '11px',
-                                    'font-family': 'Arial',
-                                    'font-weight': 'normal'
-                                },
-                                below: false         // text above the path
-                            });
-
-                            // Control visibility based on zoom
-                            const updateTextVisibility = () => {
-                                const zoom = map.getZoom();
-                                if (zoom > 10) {
-                                    layer.showText();
-                                } else {
-                                    layer.hideText();
-                                }
-                            };
-
-                            // Initial visibility check
-                            updateTextVisibility();
-
-                            // Update on zoom
-                            map.on('zoomend', updateTextVisibility);
                         }
                     }
-                }).addTo(roadsLayer);
+                });
+
+                roadsGeoJson.addTo(roadsLayer);
+                console.log('Roads added to map, features:', geoJson.features ? geoJson.features.length : 0);
 
             } catch (error) {
                 console.error('Error loading roads:', error);
@@ -531,8 +501,8 @@
 
         function clearLatestMarkers() {
             latestMarkers.forEach(marker => {
-                if (map.hasLayer(marker)) {
-                    map.removeLayer(marker);
+                if (observationsLayer.hasLayer(marker)) {
+                    observationsLayer.removeLayer(marker);
                 }
             });
             latestMarkers = [];
@@ -672,9 +642,10 @@
                                 break;
                         }
 
-                            // For actual locations, use species-specific colors
+                            // For actual locations, use species-specific colors for sightings
                             if (displayMode === 'actual' && observation.category === 'Sighting') {
-                                const speciesColor = speciesColors[observation.animal] || '#8B4513';
+                                const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
+                                const speciesColor = speciesColors[animalName] || '#8B4513';
                                 icon = createCustomIcon(speciesColor);
                             }
 
@@ -741,8 +712,10 @@
                 const isRecent = obsDate > oneWeekAgo;
                 const matchesSpecies = !selectedSpecies || obs.animal === selectedSpecies;
 
-                if (obs.category === 'Sighting' && isRecent && matchesSpecies) {
-                    console.log('Adding latest sighting marker:', obs, 'Date check:', obsDate, '>', oneWeekAgo, '=', isRecent);
+                // TEMP: Show ALL sightings for debugging (not just recent ones)
+                if (obs.category === 'Sighting' && matchesSpecies) {
+                    console.log('Adding latest sighting marker:', obs);
+                    console.log('Date check:', obsDate.toISOString(), '>', oneWeekAgo.toISOString(), '=', isRecent);
 
                     // Black bouncing marker
                     const animatedIcon = L.divIcon({
@@ -767,7 +740,7 @@
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(map); // Add directly to map for latest markers
+                    marker.addTo(observationsLayer); // Add to observations layer
                     latestMarkers.push(marker);
                     markerCount++;
                     console.log('Added latest sighting marker', markerCount, 'at', obs.latitude, obs.longitude);
@@ -775,6 +748,14 @@
             });
 
             console.log('Total latest sighting markers created:', markerCount);
+
+            // Debug: Show all sighting timestamps for comparison
+            const allSightings = allObservations.filter(obs => obs.category === 'Sighting');
+            console.log('All sightings timestamps:', allSightings.map(obs => ({
+                timestamp: obs.timestamp,
+                parsed: new Date(obs.timestamp),
+                isRecent: new Date(obs.timestamp) > oneWeekAgo
+            })));
         }
 
         function showLatestMaintenance() {
@@ -806,7 +787,7 @@
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(map); // Add directly to map for latest markers
+                    marker.addTo(observationsLayer); // Add to observations layer
                     latestMarkers.push(marker);
                 }
             });
@@ -841,7 +822,7 @@
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(map); // Add directly to map for latest markers
+                    marker.addTo(observationsLayer); // Add to observations layer
                     latestMarkers.push(marker);
                 }
             });
