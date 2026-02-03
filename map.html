@@ -118,30 +118,32 @@
         </div>
     </div>
 
+    <!-- Configuration -->
+    <script src="config.js"></script>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // Configuration
-        const API_BASE_URL = 'https://your-backend-url.vercel.app'; // Replace with your actual backend URL
-        const API_KEY = 'your-api-key'; // Replace with your actual API key
+        // Wait for config to load, then initialize map
+        function initializeMap(API_BASE_URL, API_KEY) {
 
-        // Simple authentication function
-        function getAuthHeaders() {
-            return {
-                'x-api-key': API_KEY,
-                'Content-Type': 'application/json'
-            };
-        }
+            // Simple authentication function
+            function getAuthHeaders() {
+                return {
+                    'x-api-key': API_KEY,
+                    'Content-Type': 'application/json'
+                };
+            }
 
-        // Initialize map
-        const map = L.map('map').setView([0, 0], 10); // Default center, will be updated when data loads
+            // Initialize map
+            const map = L.map('map').setView([0, 0], 10); // Default center, will be updated when data loads
 
-        // Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18,
-        }).addTo(map);
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 18,
+            }).addTo(map);
 
         // Layer groups for different data types
         const boundaryLayer = L.layerGroup().addTo(map);
@@ -323,8 +325,30 @@
             }
         }
 
-        // Start loading
-        initMap();
+        function initMapWhenConfigLoaded() {
+            if (typeof window.MAP_CONFIG === 'undefined') {
+                // Config not loaded yet, wait a bit
+                setTimeout(initMapWhenConfigLoaded, 100);
+                return;
+            }
+
+            // Use config values
+            const API_BASE_URL = window.MAP_CONFIG.API_BASE_URL;
+            const API_KEY = window.MAP_CONFIG.API_KEY;
+
+            initializeMap(API_BASE_URL, API_KEY);
+        }
+
+        // Fallback config if config.js fails to load
+        if (typeof window.MAP_CONFIG === 'undefined') {
+            window.MAP_CONFIG = {
+                API_BASE_URL: 'https://wildlife-tracker-gxz5.vercel.app',
+                API_KEY: '98394a83034f3db48e5acd3ef54bd622c5748ca5bb4fb3ff39c052319711c9a9'
+            };
+        }
+
+        // Start the initialization process
+        initMapWhenConfigLoaded();
     </script>
 </body>
 </html>
