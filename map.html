@@ -34,14 +34,14 @@
         <div class="sidebar">
             <h3>Filters & Controls</h3>
 
-            <!-- View Toggle - MOVED TO TOP -->
+            <!-- View Mode Dropdown - MOVED TO TOP -->
             <div class="control-group">
                 <h4>View Mode</h4>
-                <div class="view-toggle">
-                    <button class="view-btn active" data-view="sightings">Sightings</button>
-                    <button class="view-btn" data-view="maintenance">Maintenance</button>
-                    <button class="view-btn" data-view="incidents">Incidents</button>
-                </div>
+                <select id="view-mode-select" class="view-select">
+                    <option value="sightings" selected>Sightings</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="incidents">Incidents</option>
+                </select>
             </div>
 
             <!-- Date Range Controls -->
@@ -113,12 +113,16 @@
                     <span class="stat-label">Total Sightings</span>
                 </div>
 
-                <!-- View Toggle: Hotspots vs Actual Locations -->
+                <!-- Display Mode Switch -->
                 <div class="control-group">
                     <h4>Display Mode</h4>
-                    <div class="view-toggle">
-                        <button class="view-btn active" id="view-actual-btn">Actual Locations</button>
-                        <button class="view-btn" id="view-hotspot-btn">Hotspots</button>
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="display-mode-toggle">
+                            <span class="slider round">
+                                <span class="switch-text" data-on="Hotspots" data-off="Actual">Actual</span>
+                            </span>
+                        </label>
                     </div>
                 </div>
 
@@ -499,15 +503,16 @@
             });
 
             if (displayMode === 'hotspot') {
-                // Group observations by location (clustering)
+                // Group observations by location (clustering) with finer granularity
                 const locationGroups = {};
                 filteredObservations.forEach(obs => {
                     if (obs.latitude && obs.longitude) {
-                        const key = `${obs.latitude.toFixed(3)}_${obs.longitude.toFixed(3)}`;
+                        // Use finer clustering (0.002 degrees ≈ 200m)
+                        const key = `${(Math.round(obs.latitude / 0.002) * 0.002).toFixed(4)}_${(Math.round(obs.longitude / 0.002) * 0.002).toFixed(4)}`;
                         if (!locationGroups[key]) {
                             locationGroups[key] = {
-                                lat: obs.latitude,
-                                lng: obs.longitude,
+                                lat: Math.round(obs.latitude / 0.002) * 0.002,
+                                lng: Math.round(obs.longitude / 0.002) * 0.002,
                                 observations: []
                             };
                         }
@@ -515,42 +520,60 @@
                     }
                 });
 
-                // Create hotspot markers
+                // Create heat map style hotspots with color ramp
                 Object.values(locationGroups).forEach(group => {
                     const count = group.observations.length;
+
+                    // Color ramp based on density (1-5 levels)
+                    let heatLevel = 1;
+                    if (count >= 10) heatLevel = 5;
+                    else if (count >= 7) heatLevel = 4;
+                    else if (count >= 5) heatLevel = 3;
+                    else if (count >= 3) heatLevel = 2;
+
+                    // Size based on count
+                    const size = Math.min(30 + count * 8, 100);
+
                     const hotspotIcon = L.divIcon({
-                        className: 'hotspot-marker',
+                        className: `hotspot-heat-${heatLevel}`,
                         html: `<div style="
-                            background-color: ${currentView === 'sightings' ? '#8B4513' :
-                                             currentView === 'maintenance' ? '#DAA520' : '#DC143C'};
-                            width: ${Math.min(40 + count * 5, 80)}px;
-                            height: ${Math.min(40 + count * 5, 80)}px;
+                            width: ${size}px;
+                            height: ${size}px;
                             border-radius: 50%;
-                            border: 4px solid #2D1810;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+                            border: 3px solid rgba(45, 24, 16, 0.8);
+                            box-shadow: 0 0 ${size/2}px rgba(139, 69, 19, 0.6);
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             color: white;
                             font-weight: bold;
-                            font-size: ${Math.min(14 + count, 20)}px;
+                            font-size: ${Math.min(12 + count, 18)}px;
+                            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+                            backdrop-filter: blur(2px);
                         ">${count}</div>`,
-                        iconSize: [Math.min(40 + count * 5, 80), Math.min(40 + count * 5, 80)],
-                        iconAnchor: [Math.min(20 + count * 2.5, 40), Math.min(20 + count * 2.5, 40)]
+                        iconSize: [size, size],
+                        iconAnchor: [size/2, size/2]
                     });
 
-                    // Create popup content for all observations in this hotspot
-                    let popupContent = `<strong>Hotspot (${count} observations)</strong><br><br>`;
+                    // Create detailed popup content
+                    let popupContent = `<strong>Hotspot Activity</strong><br>`;
+                    popupContent += `<strong>Total Observations:</strong> ${count}<br>`;
+                    popupContent += `<strong>Location:</strong> ${group.lat.toFixed(4)}, ${group.lng.toFixed(4)}<br><br>`;
+
+                    // Group by type for summary
+                    const typeCount = {};
                     group.observations.forEach(obs => {
-                        const time = new Date(obs.timestamp).toLocaleString();
-                        if (obs.category === 'Sighting') {
-                            popupContent += `🐘 ${obs.animal || 'Unknown'} - ${time}<br>`;
-                        } else if (obs.category === 'Incident') {
-                            popupContent += `🚨 ${obs.incident_type || 'Unknown'} - ${time}<br>`;
-                        } else if (obs.category === 'Maintenance') {
-                            popupContent += `🔧 ${obs.maintenance_type || 'Unknown'} - ${time}<br>`;
-                        }
+                        const type = obs.category === 'Sighting' ? (obs.animal || 'Unknown Species') :
+                                   obs.category === 'Incident' ? (obs.incident_type || 'Unknown Incident') :
+                                   (obs.maintenance_type || 'Unknown Maintenance');
+                        typeCount[type] = (typeCount[type] || 0) + 1;
                     });
+
+                    Object.entries(typeCount).forEach(([type, count]) => {
+                        popupContent += `<strong>${type}:</strong> ${count}<br>`;
+                    });
+
+                    popupContent += `<br><em>Click marker for detailed list</em>`;
 
                     const marker = L.marker([group.lat, group.lng], { icon: hotspotIcon })
                         .bindPopup(popupContent);
@@ -625,42 +648,48 @@
 
             const selectedSpecies = document.getElementById('species-select').value;
 
+            console.log('Showing latest sightings, total observations:', allObservations.length);
+            console.log('One week ago:', oneWeekAgo);
+
             allObservations.forEach(obs => {
-                if (obs.category === 'Sighting' &&
-                    new Date(obs.timestamp) > oneWeekAgo &&
-                    (!selectedSpecies || obs.animal === selectedSpecies)) {
+                const obsDate = new Date(obs.timestamp);
+                const isRecent = obsDate > oneWeekAgo;
+                const matchesSpecies = !selectedSpecies || obs.animal === selectedSpecies;
+
+                if (obs.category === 'Sighting' && isRecent && matchesSpecies) {
+                    console.log('Adding latest sighting marker:', obs);
 
                     const animatedIcon = L.divIcon({
                         className: 'animated-marker',
                         html: `<div style="
-                            background-color: #8B4513;
-                            width: 32px;
-                            height: 32px;
+                            background-color: #FFD700;
+                            width: 40px;
+                            height: 40px;
                             border-radius: 50%;
-                            border: 4px solid #2D1810;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-                            animation: bounce 2s infinite;
+                            border: 4px solid #FF4500;
+                            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+                            animation: bounce 1.5s infinite;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
                         ">
                             <div style="
-                                position: absolute;
-                                top: 50%;
-                                left: 50%;
-                                transform: translate(-50%, -50%);
-                                width: 12px;
-                                height: 12px;
-                                background-color: #2D1810;
+                                width: 16px;
+                                height: 16px;
+                                background-color: #FF4500;
                                 border-radius: 50%;
+                                animation: pulse 1.5s infinite;
                             "></div>
                         </div>`,
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 16]
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
                         .bindPopup(`
-                            <strong>🐘 LATEST SIGHTING</strong><br>
+                            <strong>🐘 LATEST SIGHTING (This Week)</strong><br>
                             <strong>Species:</strong> ${obs.animal || 'Unknown'}<br>
-                            <strong>Time:</strong> ${new Date(obs.timestamp).toLocaleString()}<br>
+                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
@@ -668,6 +697,8 @@
                     latestMarkers.push(marker);
                 }
             });
+
+            console.log('Latest markers added:', latestMarkers.length);
         }
 
         function showLatestMaintenance() {
@@ -679,32 +710,32 @@
                     const animatedIcon = L.divIcon({
                         className: 'animated-marker',
                         html: `<div style="
-                            background-color: #DAA520;
-                            width: 32px;
-                            height: 32px;
+                            background-color: #32CD32;
+                            width: 40px;
+                            height: 40px;
                             border-radius: 50%;
-                            border: 4px solid #2D1810;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-                            animation: bounce 2s infinite;
+                            border: 4px solid #228B22;
+                            box-shadow: 0 0 20px rgba(50, 205, 50, 0.8);
+                            animation: bounce 1.5s infinite;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
                         ">
                             <div style="
-                                position: absolute;
-                                top: 50%;
-                                left: 50%;
-                                transform: translate(-50%, -50%);
-                                width: 12px;
-                                height: 12px;
-                                background-color: #2D1810;
+                                width: 16px;
+                                height: 16px;
+                                background-color: #228B22;
                                 border-radius: 50%;
+                                animation: pulse 1.5s infinite;
                             "></div>
                         </div>`,
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 16]
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
                         .bindPopup(`
-                            <strong>🔧 LATEST MAINTENANCE</strong><br>
+                            <strong>🔧 LATEST MAINTENANCE (This Week)</strong><br>
                             <strong>Type:</strong> ${obs.maintenance_type || 'Unknown'}<br>
                             <strong>Time:</strong> ${new Date(obs.timestamp).toLocaleString()}<br>
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
@@ -725,32 +756,32 @@
                     const animatedIcon = L.divIcon({
                         className: 'animated-marker',
                         html: `<div style="
-                            background-color: #DC143C;
-                            width: 32px;
-                            height: 32px;
+                            background-color: #FF6347;
+                            width: 40px;
+                            height: 40px;
                             border-radius: 50%;
-                            border: 4px solid #2D1810;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-                            animation: bounce 2s infinite;
+                            border: 4px solid #DC143C;
+                            box-shadow: 0 0 20px rgba(255, 99, 71, 0.8);
+                            animation: bounce 1.5s infinite;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
                         ">
                             <div style="
-                                position: absolute;
-                                top: 50%;
-                                left: 50%;
-                                transform: translate(-50%, -50%);
-                                width: 12px;
-                                height: 12px;
-                                background-color: #2D1810;
+                                width: 16px;
+                                height: 16px;
+                                background-color: #DC143C;
                                 border-radius: 50%;
+                                animation: pulse 1.5s infinite;
                             "></div>
                         </div>`,
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 16]
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
                         .bindPopup(`
-                            <strong>🚨 LATEST INCIDENT</strong><br>
+                            <strong>🚨 LATEST INCIDENT (This Week)</strong><br>
                             <strong>Type:</strong> ${obs.incident_type || 'Unknown'}<br>
                             <strong>Time:</strong> ${new Date(obs.timestamp).toLocaleString()}<br>
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
@@ -776,41 +807,30 @@
 
         // Set up all event listeners
         function setupFilters() {
-            // View toggle buttons (Sightings/Maintenance/Incidents)
-            document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    // Update active button for view toggles
-                    document.querySelectorAll('.view-btn[data-view]').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
+            // View mode dropdown
+            document.getElementById('view-mode-select').addEventListener('change', function() {
+                currentView = this.value;
 
-                    // Update current view
-                    currentView = this.dataset.view;
+                // Show/hide appropriate controls
+                document.getElementById('species-group').style.display =
+                    currentView === 'sightings' ? 'block' : 'none';
+                document.getElementById('maintenance-group').style.display =
+                    currentView === 'maintenance' ? 'block' : 'none';
+                document.getElementById('incidents-group').style.display =
+                    currentView === 'incidents' ? 'block' : 'none';
 
-                    // Show/hide appropriate controls
-                    document.getElementById('species-group').style.display =
-                        currentView === 'sightings' ? 'block' : 'none';
-                    document.getElementById('maintenance-group').style.display =
-                        currentView === 'maintenance' ? 'block' : 'none';
-                    document.getElementById('incidents-group').style.display =
-                        currentView === 'incidents' ? 'block' : 'none';
-
-                    // Reapply filters
-                    applyFilters();
-                });
-            });
-
-            // Display mode toggle buttons (Actual/Hotspots)
-            document.getElementById('view-actual-btn').addEventListener('click', function() {
-                displayMode = 'actual';
-                document.getElementById('view-actual-btn').classList.add('active');
-                document.getElementById('view-hotspot-btn').classList.remove('active');
+                // Reapply filters
                 applyFilters();
             });
 
-            document.getElementById('view-hotspot-btn').addEventListener('click', function() {
-                displayMode = 'hotspot';
-                document.getElementById('view-hotspot-btn').classList.add('active');
-                document.getElementById('view-actual-btn').classList.remove('active');
+            // Display mode switch (Hotspots/Actual)
+            document.getElementById('display-mode-toggle').addEventListener('change', function() {
+                displayMode = this.checked ? 'hotspot' : 'actual';
+
+                // Update switch text
+                const switchText = this.parentElement.querySelector('.switch-text');
+                switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
+
                 applyFilters();
             });
 
