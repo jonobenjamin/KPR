@@ -355,8 +355,9 @@
                             layer.bindPopup(`<strong>${roadName}</strong>`);
 
                             // Add text that follows the road path (like Google Maps)
-                            layer.setText(roadName, {
-                                repeat: 500,              // Repeat every 500 pixels (much less frequent)
+                            layer.setText('  ' + roadName + '  ', {
+                                repeat: false,            // Show only once per road segment
+                                center: true,             // Center the text on the road
                                 offset: 8,
                                 attributes: {
                                     'font-size': '12px',
@@ -366,7 +367,8 @@
                                     'stroke': '#fff',
                                     'stroke-width': '3',
                                     'paint-order': 'stroke',
-                                    'stroke-opacity': '0.8'
+                                    'stroke-opacity': '0.8',
+                                    'letter-spacing': '1'
                                 }
                             });
 
