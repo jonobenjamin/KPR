@@ -10,6 +10,13 @@
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet TextPath Plugin CSS -->
+    <style>
+        .leaflet-text-path {
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
     <!-- Top Ribbon -->
@@ -187,6 +194,9 @@
 
     <!-- Leaflet Heat Plugin -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    
+    <!-- Leaflet TextPath Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-textpath@1.2.3/leaflet.textpath.min.js"></script>
 
 
 
@@ -331,7 +341,7 @@
                 const geoJson = await response.json();
                 console.log('Roads data loaded, features:', geoJson.features ? geoJson.features.length : 'none');
 
-                const roadsGeoJson =                 L.geoJSON(geoJson, {
+                const roadsGeoJson = L.geoJSON(geoJson, {
                     style: {
                         color: '#000',
                         weight: 2,
@@ -341,48 +351,26 @@
                         const roadName = feature.properties?.Roads || feature.properties?.name;
 
                         if (roadName) {
+                            // Add popup
                             layer.bindPopup(`<strong>${roadName}</strong>`);
 
-                            // Add always-visible road name label
-                            const latlngs = layer.getLatLngs();
-                            if (!latlngs || latlngs.length < 2) return;
-
-                            // Use bounds center for simplicity and reliability
-                            const bounds = layer.getBounds();
-                            const centerPoint = bounds.getCenter();
-
-                            // Simple horizontal labels for now - make them visible first
-                            let angle = 0; // No rotation initially
-
-                            const roadLabel = L.marker(centerPoint, {
-                                icon: L.divIcon({
-                                    className: 'road-name-label',
-                                    html: `<div style="
-                                        color: #000;
-                                        font-size: 12px;
-                                        font-family: Arial, sans-serif;
-                                        font-weight: bold;
-                                        white-space: nowrap;
-                                        text-shadow: 1px 1px 2px rgba(255,255,255,0.9);
-                                        transform: rotate(${angle}deg);
-                                        transform-origin: 50% 50%;
-                                        pointer-events: none;
-                                        background: rgba(255,255,0,0.9); /* Yellow for testing */
-                                        padding: 3px 6px;
-                                        border-radius: 4px;
-                                        border: 1px solid rgba(0,0,0,0.3);
-                                        display: inline-block;
-                                        position: absolute;
-                                        top: 0;
-                                        left: 0;
-                                    ">${roadName}</div>`,
-                                    iconSize: null,
-                                    iconAnchor: [0, 0]
-                                })
+                            // Add text that follows the road path (like Google Maps)
+                            layer.setText(roadName, {
+                                repeat: true,
+                                offset: 8,
+                                attributes: {
+                                    'font-size': '12px',
+                                    'font-weight': 'bold',
+                                    'font-family': 'Arial, sans-serif',
+                                    'fill': '#000',
+                                    'stroke': '#fff',
+                                    'stroke-width': '3',
+                                    'paint-order': 'stroke',
+                                    'stroke-opacity': '0.8'
+                                }
                             });
 
-                            roadLabel.addTo(map); // Add directly to map for testing
-                            console.log('Added road label marker for:', roadName, 'at:', centerPoint, 'angle:', angle);
+                            console.log('Added curved text label for road:', roadName);
                         }
                     }
                 });
@@ -933,8 +921,6 @@
                 document.getElementById(id).addEventListener('change', applyLatestFilters);
             });
         }
-
-        // Road label management
 
         // Start the map
         initMap();
