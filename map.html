@@ -189,6 +189,7 @@
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
 
+
     <script>
         // Simple Wildlife Tracker Map
         // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
@@ -263,77 +264,6 @@
             });
         };
 
-        // Google Maps style road text - follows road direction
-        function addTextToPath(layer, text) {
-            const latlngs = layer.getLatLngs();
-            if (!latlngs || latlngs.length < 2) return;
-
-            // Find the center point along the actual path
-            const totalDistance = latlngs.reduce((sum, latlng, i) => {
-                if (i === 0) return 0;
-                return sum + map.distance(latlngs[i-1], latlng);
-            }, 0);
-
-            const targetDistance = totalDistance / 2; // Center of path
-            let currentDistance = 0;
-            let centerPoint = latlngs[0];
-            let angle = 0;
-
-            // Find the center point and calculate direction
-            for (let i = 1; i < latlngs.length; i++) {
-                const segmentDistance = map.distance(latlngs[i-1], latlngs[i]);
-                if (currentDistance + segmentDistance >= targetDistance) {
-                    const remainingDistance = targetDistance - currentDistance;
-                    const ratio = remainingDistance / segmentDistance;
-
-                    const lat1 = latlngs[i-1].lat;
-                    const lng1 = latlngs[i-1].lng;
-                    const lat2 = latlngs[i].lat;
-                    const lng2 = latlngs[i].lng;
-
-                    centerPoint = L.latLng(
-                        lat1 + (lat2 - lat1) * ratio,
-                        lng1 + (lng2 - lng1) * ratio
-                    );
-
-                    // Calculate angle for this segment
-                    angle = Math.atan2(lat2 - lat1, lng2 - lng1) * 180 / Math.PI;
-                    break;
-                }
-                currentDistance += segmentDistance;
-            }
-
-            // Create text marker that follows road direction
-            const textMarker = L.marker(centerPoint, {
-                icon: L.divIcon({
-                    className: 'road-text-google',
-                    html: `<div style="
-                        color: #000 !important;
-                        font-size: 14px !important;
-                        font-family: Arial, sans-serif !important;
-                        font-weight: bold !important;
-                        white-space: nowrap;
-                        text-shadow: 2px 2px 4px rgba(255,255,255,1);
-                        background: rgba(255,255,255,0.8);
-                        padding: 2px 4px;
-                        border-radius: 3px;
-                        border: 1px solid rgba(0,0,0,0.2);
-                        transform: rotate(${angle}deg);
-                        transform-origin: center center;
-                        pointer-events: none;
-                        display: block !important;
-                        visibility: visible !important;
-                        opacity: 1 !important;
-                    ">${text}</div>`,
-                    iconSize: null,
-                    iconAnchor: [0, 0]
-                })
-            });
-
-            textMarker.addTo(roadsLayer);
-            console.log('Added road text marker for:', text, 'at:', centerPoint);
-            return textMarker;
-        }
 
         const sightingIcon = createCustomIcon('#8B4513');  // Saddle brown for sightings
         const incidentIcon = createCustomIcon('#DC143C');   // Crimson for incidents
@@ -401,21 +331,56 @@
                 const geoJson = await response.json();
                 console.log('Roads data loaded:', geoJson);
 
-                const roadsGeoJson = L.geoJSON(geoJson, {
+                const roadsGeoJson =                 L.geoJSON(geoJson, {
                     style: {
-                        color: '#8B4513', // Saddle brown roads
-                        weight: 3,
+                        color: '#000',
+                        weight: 2,
                         opacity: 0.9
                     },
                     onEachFeature: function (feature, layer) {
-                        // Add popup with road name when clicked
-                        const roadName = feature.properties && (feature.properties.Roads || feature.properties.name);
+                        const roadName = feature.properties?.Roads || feature.properties?.name;
+
                         if (roadName) {
                             layer.bindPopup(`<strong>${roadName}</strong>`);
 
-                            // Add simple road name label - always visible like Google Maps
-                            console.log('Processing road:', roadName);
-                            addTextToPath(layer, roadName);
+                            // Add always-visible road name label
+                            const bounds = layer.getBounds();
+                            const center = bounds.getCenter();
+
+                            // Calculate road direction for text rotation
+                            const latlngs = layer.getLatLngs();
+                            let angle = 0;
+                            if (latlngs && latlngs.length > 1) {
+                                angle = Math.atan2(
+                                    latlngs[1].lat - latlngs[0].lat,
+                                    latlngs[1].lng - latlngs[0].lng
+                                ) * 180 / Math.PI;
+                            }
+
+                            const roadLabel = L.marker(center, {
+                                icon: L.divIcon({
+                                    className: 'road-name-label',
+                                    html: `<div style="
+                                        color: #000;
+                                        font-size: 12px;
+                                        font-family: Arial, sans-serif;
+                                        font-weight: bold;
+                                        white-space: nowrap;
+                                        text-shadow: 1px 1px 2px rgba(255,255,255,0.9);
+                                        transform: rotate(${angle}deg);
+                                        transform-origin: center center;
+                                        pointer-events: none;
+                                        background: rgba(255,255,255,0.8);
+                                        padding: 2px 4px;
+                                        border-radius: 3px;
+                                        border: 1px solid rgba(0,0,0,0.2);
+                                    ">${roadName}</div>`,
+                                    iconSize: null,
+                                    iconAnchor: [0, 0]
+                                })
+                            });
+
+                            roadLabel.addTo(roadsLayer);
                         }
                     }
                 });
