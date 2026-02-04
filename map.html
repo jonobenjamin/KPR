@@ -263,19 +263,50 @@
             });
         };
 
-        // Simple road text function - like Google Maps
+        // Google Maps style road text - follows road direction
         function addTextToPath(layer, text) {
             const latlngs = layer.getLatLngs();
-            if (!latlngs || latlngs.length === 0) return;
+            if (!latlngs || latlngs.length < 2) return;
 
-            // Use the center of the road bounds - simple and reliable
-            const bounds = layer.getBounds();
-            const centerPoint = bounds.getCenter();
+            // Find the center point along the actual path
+            const totalDistance = latlngs.reduce((sum, latlng, i) => {
+                if (i === 0) return 0;
+                return sum + map.distance(latlngs[i-1], latlng);
+            }, 0);
 
-            // Simple horizontal text (no rotation for now)
+            const targetDistance = totalDistance / 2; // Center of path
+            let currentDistance = 0;
+            let centerPoint = latlngs[0];
+            let angle = 0;
+
+            // Find the center point and calculate direction
+            for (let i = 1; i < latlngs.length; i++) {
+                const segmentDistance = map.distance(latlngs[i-1], latlngs[i]);
+                if (currentDistance + segmentDistance >= targetDistance) {
+                    const remainingDistance = targetDistance - currentDistance;
+                    const ratio = remainingDistance / segmentDistance;
+
+                    const lat1 = latlngs[i-1].lat;
+                    const lng1 = latlngs[i-1].lng;
+                    const lat2 = latlngs[i].lat;
+                    const lng2 = latlngs[i].lng;
+
+                    centerPoint = L.latLng(
+                        lat1 + (lat2 - lat1) * ratio,
+                        lng1 + (lng2 - lng1) * ratio
+                    );
+
+                    // Calculate angle for this segment
+                    angle = Math.atan2(lat2 - lat1, lng2 - lng1) * 180 / Math.PI;
+                    break;
+                }
+                currentDistance += segmentDistance;
+            }
+
+            // Create text marker that follows road direction
             const textMarker = L.marker(centerPoint, {
                 icon: L.divIcon({
-                    className: 'road-text-simple',
+                    className: 'road-text-google',
                     html: `<div style="
                         color: #000;
                         font-size: 12px;
@@ -283,8 +314,9 @@
                         font-weight: normal;
                         white-space: nowrap;
                         text-shadow: 1px 1px 2px rgba(255,255,255,0.9);
+                        transform: rotate(${angle}deg);
+                        transform-origin: center center;
                         pointer-events: none;
-                        z-index: 1000;
                     ">${text}</div>`,
                     iconSize: null,
                     iconAnchor: [0, 0]
