@@ -487,6 +487,14 @@ input:checked + .slider .switch-text {
     box-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 
+.black-pin {
+    z-index: 10000 !important;
+}
+
+.black-pin div {
+    z-index: 10001 !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .main-content {
