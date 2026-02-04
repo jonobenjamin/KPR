@@ -188,6 +188,7 @@
     <!-- Leaflet Heat Plugin -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
+
     <script>
         // Simple Wildlife Tracker Map
         // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
@@ -261,6 +262,85 @@
                 iconAnchor: [4, 4]
             });
         };
+
+        // Custom text-on-path function for roads
+        function addTextToPath(layer, text) {
+            const latlngs = layer.getLatLngs();
+            if (!latlngs || latlngs.length < 2) return;
+
+            // Calculate the center point of the path
+            const totalDistance = latlngs.reduce((sum, latlng, i) => {
+                if (i === 0) return 0;
+                return sum + map.distance(latlngs[i-1], latlng);
+            }, 0);
+
+            const targetDistance = totalDistance / 2; // Center of path
+            let currentDistance = 0;
+            let centerPoint = latlngs[0];
+
+            // Find the point at the center distance along the path
+            for (let i = 1; i < latlngs.length; i++) {
+                const segmentDistance = map.distance(latlngs[i-1], latlngs[i]);
+                if (currentDistance + segmentDistance >= targetDistance) {
+                    const remainingDistance = targetDistance - currentDistance;
+                    const ratio = remainingDistance / segmentDistance;
+
+                    const lat1 = latlngs[i-1].lat;
+                    const lng1 = latlngs[i-1].lng;
+                    const lat2 = latlngs[i].lat;
+                    const lng2 = latlngs[i].lng;
+
+                    centerPoint = L.latLng(
+                        lat1 + (lat2 - lat1) * ratio,
+                        lng1 + (lng2 - lng1) * ratio
+                    );
+                    break;
+                }
+                currentDistance += segmentDistance;
+            }
+
+            // Calculate path direction at center point for text rotation
+            let angle = 0;
+            if (latlngs.length > 1) {
+                // Use the direction of the path segment containing the center point
+                for (let i = 1; i < latlngs.length; i++) {
+                    const segmentDistance = map.distance(latlngs[i-1], latlngs[i]);
+                    if (currentDistance + segmentDistance >= targetDistance) {
+                        angle = Math.atan2(
+                            latlngs[i].lat - latlngs[i-1].lat,
+                            latlngs[i].lng - latlngs[i-1].lng
+                        ) * 180 / Math.PI;
+                        break;
+                    }
+                }
+            }
+
+            // Create curved text marker that follows the road
+            const textMarker = L.marker(centerPoint, {
+                icon: L.divIcon({
+                    className: 'road-text-path',
+                    html: `<div style="
+                        color: #000;
+                        font-size: 11px;
+                        font-family: Arial, sans-serif;
+                        font-weight: normal;
+                        white-space: nowrap;
+                        text-shadow: 1px 1px 1px rgba(255,255,255,0.9);
+                        transform: rotate(${angle}deg);
+                        transform-origin: center center;
+                        background: rgba(255,255,255,0.7);
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        border: 1px solid rgba(0,0,0,0.3);
+                    ">${text}</div>`,
+                    iconSize: null,
+                    iconAnchor: [0, 0]
+                })
+            });
+
+            textMarker.addTo(roadsLayer);
+            return textMarker;
+        }
 
         const sightingIcon = createCustomIcon('#8B4513');  // Saddle brown for sightings
         const incidentIcon = createCustomIcon('#DC143C');   // Crimson for incidents
@@ -340,36 +420,46 @@
                         if (roadName) {
                             layer.bindPopup(`<strong>${roadName}</strong>`);
 
-                            // Add road name label
-                            const bounds = layer.getBounds();
-                            const center = bounds.getCenter();
+                            // Add custom text-on-path for road names
+                            try {
+                                const textMarker = addTextToPath(layer, roadName);
 
-                            // Create a simple text label
-                            const label = L.marker(center, {
-                                icon: L.divIcon({
-                                    className: 'road-label',
-                                    html: `<div style="
-                                        background: rgba(255, 255, 255, 0.8);
-                                        border: 1px solid #8B4513;
-                                        border-radius: 3px;
-                                        padding: 2px 6px;
-                                        font-size: 11px;
-                                        font-weight: bold;
-                                        color: #2D1810;
-                                        white-space: nowrap;
-                                    ">${roadName}</div>`,
-                                    iconSize: null,
-                                    iconAnchor: [0, -5]
-                                })
-                            });
+                                // Control visibility based on zoom
+                                const updateTextVisibility = () => {
+                                    const zoom = map.getZoom();
+                                    if (zoom > 10 && textMarker) {  // Show at moderate zoom levels
+                                        roadsLayer.addLayer(textMarker);
+                                    } else if (textMarker) {
+                                        roadsLayer.removeLayer(textMarker);
+                                    }
+                                };
 
-                            label.addTo(roadsLayer);
+                                // Initial visibility check
+                                updateTextVisibility();
+
+                                // Update on zoom
+                                map.on('zoomend', updateTextVisibility);
+
+                            } catch (error) {
+                                console.error('Error adding custom road text:', error);
+                                // Fallback: simple center label
+                                const bounds = layer.getBounds();
+                                const center = bounds.getCenter();
+                                const label = L.marker(center, {
+                                    icon: L.divIcon({
+                                        className: 'road-text-fallback',
+                                        html: `<div style="background: rgba(255,255,255,0.9); border: 1px solid #000; border-radius: 3px; padding: 1px 4px; font-size: 10px; color: #000; white-space: nowrap;">${roadName}</div>`,
+                                        iconSize: null,
+                                        iconAnchor: [0, -5]
+                                    })
+                                });
+                                label.addTo(roadsLayer);
+                            }
                         }
                     }
                 });
 
                 roadsGeoJson.addTo(roadsLayer);
-                console.log('Roads added to map, features:', geoJson.features ? geoJson.features.length : 0);
 
             } catch (error) {
                 console.error('Error loading roads:', error);
@@ -592,9 +682,29 @@
 
             if (displayMode === 'hotspot') {
                 // Create heat map using Leaflet.heat plugin
-                const points = filteredObservations
-                    .filter(obs => obs.latitude && obs.longitude)
+                // Use ALL observations within date range for hotspots, not filtered by current view
+                const hotspotObservations = allObservations.filter(obs => {
+                    // Date range filter
+                    if (startDate || endDate) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (startDate && obsDate < new Date(startDate)) return false;
+                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
+                    }
+
+                    // Month/Year filter
+                    if (selectedMonth || selectedYear) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
+                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
+                    }
+
+                    return obs.latitude && obs.longitude;
+                });
+
+                const points = hotspotObservations
                     .map(obs => [obs.latitude, obs.longitude, 1]); // [lat, lng, intensity]
+
+                console.log('Hotspot mode: showing', points.length, 'points from date-filtered observations');
 
                 if (points.length > 0) {
                     const heatLayer = L.heatLayer(points, {
@@ -720,8 +830,8 @@
                 const isRecent = obsDate > oneWeekAgo;
                 const matchesSpecies = !selectedSpecies || obs.animal === selectedSpecies;
 
-                // Show all sightings (not just recent ones for now)
-                if (obs.category === 'Sighting' && matchesSpecies) {
+                // Show recent sightings only
+                if (obs.category === 'Sighting' && isRecent && matchesSpecies) {
 
                     // Black bouncing marker - simple point
                     const animatedIcon = L.divIcon({
@@ -900,6 +1010,7 @@
         // Start the map
         initMap();
         setupFilters();
+
     </script>
 </body>
 </html>
