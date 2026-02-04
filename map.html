@@ -340,49 +340,28 @@
             const minZoom = 13; // Only show labels at zoom 13 or higher
 
             roadLayers.forEach(({ layer, roadName }) => {
+                // Always clear existing text first
+                layer.setText(null);
+                
                 if (zoom >= minZoom) {
                     // Show labels at high zoom to prevent overlap
-                    if (!layer._textPath) {
-                        // Calculate orientation to prevent upside-down text
-                        const latlngs = layer.getLatLngs();
-                        if (latlngs && latlngs.length >= 2) {
-                            const start = latlngs[0];
-                            const end = latlngs[latlngs.length - 1];
-                            
-                            // Calculate bearing from start to end
-                            const bearing = Math.atan2(
-                                end.lng - start.lng,
-                                end.lat - start.lat
-                            ) * (180 / Math.PI);
-                            
-                            // If bearing indicates upside-down text (roughly 90-270 degrees), reverse it
-                            const isUpsideDown = bearing > 90 && bearing < 270;
-                            
-                            layer.setText('  ' + roadName + '  ', {
-                                repeat: false,
-                                center: true,
-                                offset: 8,
-                                below: isUpsideDown, // Flip to other side if upside down
-                                orientation: isUpsideDown ? bearing + 180 : bearing, // Rotate to keep readable
-                                attributes: {
-                                    'font-size': '13px',
-                                    'font-weight': 'bold',
-                                    'font-family': 'Arial, sans-serif',
-                                    'fill': '#000',
-                                    'stroke': '#fff',
-                                    'stroke-width': '3.5',
-                                    'paint-order': 'stroke',
-                                    'stroke-opacity': '0.9',
-                                    'letter-spacing': '1.5'
-                                }
-                            });
+                    layer.setText('  ' + roadName + '  ', {
+                        repeat: false,
+                        center: true,
+                        offset: 8,
+                        orientation: 'auto', // Auto orientation to keep text readable
+                        attributes: {
+                            'font-size': '13px',
+                            'font-weight': 'bold',
+                            'font-family': 'Arial, sans-serif',
+                            'fill': '#000',
+                            'stroke': '#fff',
+                            'stroke-width': '3.5',
+                            'paint-order': 'stroke',
+                            'stroke-opacity': '0.9',
+                            'letter-spacing': '1.5'
                         }
-                    }
-                } else {
-                    // Hide labels at low zoom to prevent overlap
-                    if (layer._textPath) {
-                        layer.setText(null);
-                    }
+                    });
                 }
             });
         }
