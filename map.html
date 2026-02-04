@@ -335,22 +335,6 @@
         let roadLayers = [];
         let reversedLayers = new Map(); // Store reversed polylines
 
-        // Function to calculate angle between two points
-        function calculateAngle(point1, point2) {
-            const dx = point2.lng - point1.lng;
-            const dy = point2.lat - point1.lat;
-            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-            return angle;
-        }
-
-        // Function to check if text would be upside down at given angle
-        function isUpsideDown(angle) {
-            // Normalize angle to 0-360
-            angle = ((angle % 360) + 360) % 360;
-            // Text is upside down if angle is between 90 and 270 degrees
-            return angle > 90 && angle < 270;
-        }
-
         // Function to update road labels based on zoom level
         function updateRoadLabels() {
             const zoom = map.getZoom();
@@ -384,28 +368,35 @@
                         }
                     };
                     
-                    // Calculate angle at the CENTER portion where text will appear
+                    // Simple check: does the road go right-to-left at its center?
                     let shouldReverse = false;
                     if (latlngs && latlngs.length >= 2) {
-                        // Find the middle segment of the road
+                        // Get the actual direction at the center segment
                         const midIndex = Math.floor(latlngs.length / 2);
                         
-                        // Get points around the center
-                        let point1, point2;
+                        // Look at the segment where text will actually be placed
+                        let startPoint, endPoint;
                         if (latlngs.length === 2) {
-                            point1 = latlngs[0];
-                            point2 = latlngs[1];
+                            startPoint = latlngs[0];
+                            endPoint = latlngs[1];
                         } else {
-                            // Use the segment at the center of the road
-                            point1 = latlngs[Math.max(0, midIndex - 1)];
-                            point2 = latlngs[Math.min(latlngs.length - 1, midIndex + 1)];
+                            // Get the segment at the center
+                            const segmentStart = Math.max(0, midIndex - 1);
+                            const segmentEnd = Math.min(latlngs.length - 1, midIndex);
+                            startPoint = latlngs[segmentStart];
+                            endPoint = latlngs[segmentEnd];
                         }
                         
-                        // Calculate the angle of this center segment
-                        const angle = calculateAngle(point1, point2);
+                        // Calculate dx and dy
+                        const dx = endPoint.lng - startPoint.lng;
+                        const dy = endPoint.lat - startPoint.lat;
                         
-                        // If text would be upside down, we need to reverse the path
-                        shouldReverse = isUpsideDown(angle);
+                        // Calculate angle in degrees
+                        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+                        
+                        // Text is upside down if angle is between 90 and 270 degrees
+                        // (pointing generally downward or to the left)
+                        shouldReverse = angleDeg > 90 || angleDeg < -90;
                     }
                     
                     if (shouldReverse) {
