@@ -356,8 +356,9 @@
 
                             // Add text that follows the road path (like Google Maps)
                             layer.setText(roadName, {
-                                repeat: true,
+                                repeat: 500,              // Repeat every 500 pixels (much less frequent)
                                 offset: 8,
+                                orientation: 'flip',      // Prevents upside-down text
                                 attributes: {
                                     'font-size': '12px',
                                     'font-weight': 'bold',
