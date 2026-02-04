@@ -333,7 +333,6 @@
 
         // Store road layers for zoom-based label management
         let roadLayers = [];
-        let reversedLayers = new Map(); // Store reversed polylines
 
         // Function to update road labels based on zoom level
         function updateRoadLabels() {
@@ -341,20 +340,32 @@
             const minZoom = 14; // Only show labels at zoom 14 or higher (reduced overlap)
 
             roadLayers.forEach(({ layer, roadName }) => {
-                // Clear text from both original and reversed layers
+                // Clear existing text
                 layer.setText(null);
-                if (reversedLayers.has(layer)) {
-                    const reversedLayer = reversedLayers.get(layer);
-                    reversedLayer.setText(null);
-                }
                 
                 if (zoom >= minZoom) {
-                    // Get the line coordinates to determine orientation at center
-                    const latlngs = layer.getLatLngs();
-                    let textOptions = {
+                    // Use the plugin's built-in orientation handling
+                    layer.setText('  ' + roadName + '  ', {
                         repeat: false,
                         center: true,
                         offset: 8,
+                        orientation: function(angle, coords, point) {
+                            // This function is called dynamically by the plugin
+                            // angle: the natural angle of the text
+                            // Return angle adjustment to keep text readable
+                            
+                            // Normalize angle to -180 to 180
+                            while (angle > 180) angle -= 360;
+                            while (angle < -180) angle += 360;
+                            
+                            // If text would be upside down (angle between 90 and 270 or -90 and -270)
+                            if (angle > 90 && angle <= 180) {
+                                return angle - 180; // Flip it
+                            } else if (angle < -90 && angle >= -180) {
+                                return angle + 180; // Flip it
+                            }
+                            return angle; // Keep as is
+                        },
                         attributes: {
                             'font-size': '13px',
                             'font-weight': 'bold',
@@ -366,56 +377,7 @@
                             'stroke-opacity': '0.9',
                             'letter-spacing': '1.5'
                         }
-                    };
-                    
-                    // Simple check: does the road go right-to-left at its center?
-                    let shouldReverse = false;
-                    if (latlngs && latlngs.length >= 2) {
-                        // Get the actual direction at the center segment
-                        const midIndex = Math.floor(latlngs.length / 2);
-                        
-                        // Look at the segment where text will actually be placed
-                        let startPoint, endPoint;
-                        if (latlngs.length === 2) {
-                            startPoint = latlngs[0];
-                            endPoint = latlngs[1];
-                        } else {
-                            // Get the segment at the center
-                            const segmentStart = Math.max(0, midIndex - 1);
-                            const segmentEnd = Math.min(latlngs.length - 1, midIndex);
-                            startPoint = latlngs[segmentStart];
-                            endPoint = latlngs[segmentEnd];
-                        }
-                        
-                        // Calculate dx and dy
-                        const dx = endPoint.lng - startPoint.lng;
-                        const dy = endPoint.lat - startPoint.lat;
-                        
-                        // Calculate angle in degrees
-                        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
-                        
-                        // Text is upside down if angle is between 90 and 270 degrees
-                        // (pointing generally downward or to the left)
-                        shouldReverse = angleDeg > 90 || angleDeg < -90;
-                    }
-                    
-                    if (shouldReverse) {
-                        // Create or use reversed polyline
-                        if (!reversedLayers.has(layer)) {
-                            const reversedCoords = [...latlngs].reverse();
-                            const reversedLayer = L.polyline(reversedCoords, {
-                                color: '#000',
-                                weight: 2,
-                                opacity: 0
-                            }).addTo(roadsLayer);
-                            reversedLayers.set(layer, reversedLayer);
-                        }
-                        // Apply text to reversed layer
-                        reversedLayers.get(layer).setText('  ' + roadName + '  ', textOptions);
-                    } else {
-                        // Apply text to original layer
-                        layer.setText('  ' + roadName + '  ', textOptions);
-                    }
+                    });
                 }
             });
         }
