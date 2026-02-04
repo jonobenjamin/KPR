@@ -333,6 +333,7 @@
 
         // Store road layers for zoom-based label management
         let roadLayers = [];
+        let reversedLayers = new Map(); // Store reversed polylines
 
         // Function to calculate angle between two points
         function calculateAngle(point1, point2) {
@@ -356,8 +357,12 @@
             const minZoom = 14; // Only show labels at zoom 14 or higher (reduced overlap)
 
             roadLayers.forEach(({ layer, roadName }) => {
-                // Always clear existing text first
+                // Clear text from both original and reversed layers
                 layer.setText(null);
+                if (reversedLayers.has(layer)) {
+                    const reversedLayer = reversedLayers.get(layer);
+                    reversedLayer.setText(null);
+                }
                 
                 if (zoom >= minZoom) {
                     // Get the line coordinates to determine orientation at center
@@ -380,6 +385,7 @@
                     };
                     
                     // Calculate angle at the CENTER portion where text will appear
+                    let shouldReverse = false;
                     if (latlngs && latlngs.length >= 2) {
                         // Find the middle segment of the road
                         const midIndex = Math.floor(latlngs.length / 2);
@@ -398,13 +404,27 @@
                         // Calculate the angle of this center segment
                         const angle = calculateAngle(point1, point2);
                         
-                        // If text would be upside down, flip it 180 degrees
-                        if (isUpsideDown(angle)) {
-                            textOptions.orientation = 180;
-                        }
+                        // If text would be upside down, we need to reverse the path
+                        shouldReverse = isUpsideDown(angle);
                     }
                     
-                    layer.setText('  ' + roadName + '  ', textOptions);
+                    if (shouldReverse) {
+                        // Create or use reversed polyline
+                        if (!reversedLayers.has(layer)) {
+                            const reversedCoords = [...latlngs].reverse();
+                            const reversedLayer = L.polyline(reversedCoords, {
+                                color: '#000',
+                                weight: 2,
+                                opacity: 0
+                            }).addTo(roadsLayer);
+                            reversedLayers.set(layer, reversedLayer);
+                        }
+                        // Apply text to reversed layer
+                        reversedLayers.get(layer).setText('  ' + roadName + '  ', textOptions);
+                    } else {
+                        // Apply text to original layer
+                        layer.setText('  ' + roadName + '  ', textOptions);
+                    }
                 }
             });
         }
