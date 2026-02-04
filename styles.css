@@ -487,11 +487,11 @@ input:checked + .slider .switch-text {
     box-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 
-.black-pin {
+.black-pin, .black-pin-sighting, .black-pin-maintenance, .black-pin-incident {
     z-index: 10000 !important;
 }
 
-.black-pin div {
+.black-pin div, .black-pin-sighting div, .black-pin-maintenance div, .black-pin-incident div {
     z-index: 10001 !important;
 }
 
