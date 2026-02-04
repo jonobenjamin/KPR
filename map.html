@@ -337,7 +337,7 @@
         // Function to update road labels based on zoom level
         function updateRoadLabels() {
             const zoom = map.getZoom();
-            const minZoom = 13; // Only show labels at zoom 13 or higher
+            const minZoom = 14; // Only show labels at zoom 14 or higher (reduced overlap)
 
             roadLayers.forEach(({ layer, roadName }) => {
                 // Always clear existing text first
@@ -345,11 +345,12 @@
                 
                 if (zoom >= minZoom) {
                     // Show labels at high zoom to prevent overlap
-                    layer.setText('  ' + roadName + '  ', {
+                    // Get the line coordinates to determine orientation
+                    const latlngs = layer.getLatLngs();
+                    let textOptions = {
                         repeat: false,
                         center: true,
                         offset: 8,
-                        orientation: 'auto', // Auto orientation to keep text readable
                         attributes: {
                             'font-size': '13px',
                             'font-weight': 'bold',
@@ -361,7 +362,22 @@
                             'stroke-opacity': '0.9',
                             'letter-spacing': '1.5'
                         }
-                    });
+                    };
+                    
+                    // Check if line goes roughly right-to-left (would be upside down)
+                    if (latlngs && latlngs.length >= 2) {
+                        const start = latlngs[0];
+                        const end = latlngs[latlngs.length - 1];
+                        
+                        // If end longitude is less than start longitude, line goes right-to-left
+                        // Text would be upside down, so we reverse it
+                        if (end.lng < start.lng) {
+                            // Reverse the text by setting orientation angle
+                            textOptions.orientation = 180;
+                        }
+                    }
+                    
+                    layer.setText('  ' + roadName + '  ', textOptions);
                 }
             });
         }
