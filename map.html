@@ -149,7 +149,7 @@
                 <!-- Latest Sightings Toggle -->
                 <div class="latest-toggle">
                     <input type="checkbox" id="latest-sightings-toggle">
-                    <label for="latest-sightings-toggle">Show Recent Activity (This Week)</label>
+                    <label for="latest-sightings-toggle">Show Recent Sightings (This Week)</label>
                 </div>
 
             </div>
@@ -162,11 +162,11 @@
                     <span class="stat-label">Total Maintenance</span>
                 </div>
 
-                <!-- Maintenance toggle hidden - using single recent activity toggle -->
-                <!-- <div class="latest-toggle">
+                <!-- Latest Maintenance Toggle -->
+                <div class="latest-toggle">
                     <input type="checkbox" id="latest-maintenance-toggle">
-                    <label for="latest-maintenance-toggle">Show Latest Maintenance</label>
-                </div> -->
+                    <label for="latest-maintenance-toggle">Show Recent Maintenance (This Week)</label>
+                </div>
             </div>
 
             <!-- Incidents Stats -->
@@ -177,11 +177,11 @@
                     <span class="stat-label">Total Incidents</span>
                 </div>
 
-                <!-- Incidents toggle hidden - using single recent activity toggle -->
-                <!-- <div class="latest-toggle">
+                <!-- Latest Incidents Toggle -->
+                <div class="latest-toggle">
                     <input type="checkbox" id="latest-incidents-toggle">
-                    <label for="latest-incidents-toggle">Show Latest Incidents</label>
-                </div> -->
+                    <label for="latest-incidents-toggle">Show Recent Incidents (This Week)</label>
+                </div>
             </div>
         </div>
     </div>
@@ -769,10 +769,20 @@
             console.log('Applying latest filters');
             clearLatestMarkers();
 
-            // Show black pins for all recent observations when latest sightings is toggled
+            // Show black pins for recent observations by category
             if (document.getElementById('latest-sightings-toggle').checked) {
-                console.log('Showing black pins for all recent observations');
+                console.log('Showing black pins for recent sightings');
                 showLatestSightings();
+            }
+
+            if (document.getElementById('latest-maintenance-toggle').checked) {
+                console.log('Showing black pins for recent maintenance');
+                showLatestMaintenance();
+            }
+
+            if (document.getElementById('latest-incidents-toggle').checked) {
+                console.log('Showing black pins for recent incidents');
+                showLatestIncidents();
             }
 
             console.log('Latest markers created:', latestMarkers.length);
@@ -782,19 +792,19 @@
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-            console.log('Showing black pins for ALL observations from past week');
+            console.log('Showing black pins for recent SIGHTINGS from past week');
 
             let markerCount = 0;
 
-            // Show simple black pins for ALL observations from the past week
+            // Show simple black pins for recent SIGHTINGS only
             allObservations.forEach(obs => {
                 const obsDate = new Date(obs.timestamp);
                 const isRecent = obsDate > oneWeekAgo;
 
-                if (isRecent && obs.latitude && obs.longitude) {
-                    // Simple black pin - no animation, just a black dot
+                if (isRecent && obs.latitude && obs.longitude && obs.category === 'Sighting') {
+                    // Simple black pin for sightings
                     const blackPinIcon = L.divIcon({
-                        className: 'black-pin',
+                        className: 'black-pin-sighting',
                         html: `<div style="
                             background-color: #000000;
                             width: 8px;
@@ -808,11 +818,8 @@
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
                         .bindPopup(`
-                            <strong>📍 RECENT ACTIVITY (This Week)</strong><br>
-                            <strong>Type:</strong> ${obs.category}<br>
-                            ${obs.category === 'Sighting' ? `<strong>Species:</strong> ${obs.animal || 'Unknown'}<br>` : ''}
-                            ${obs.category === 'Incident' ? `<strong>Incident:</strong> ${obs.incident_type || 'Unknown'}<br>` : ''}
-                            ${obs.category === 'Maintenance' ? `<strong>Maintenance:</strong> ${obs.maintenance_type || 'Unknown'}<br>` : ''}
+                            <strong>🐘 RECENT SIGHTING (This Week)</strong><br>
+                            <strong>Species:</strong> ${obs.animal || 'Unknown'}<br>
                             <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
@@ -823,77 +830,97 @@
                 }
             });
 
-            console.log('Total black pins created for recent observations:', markerCount);
+            console.log('Total black pins created for recent sightings:', markerCount);
         }
 
         function showLatestMaintenance() {
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
+            console.log('Showing black pins for recent MAINTENANCE from past week');
+
+            let markerCount = 0;
+
+            // Show simple black pins for recent MAINTENANCE only
             allObservations.forEach(obs => {
-                if (obs.category === 'Maintenance' && new Date(obs.timestamp) > oneWeekAgo) {
-                    // Black bouncing marker - simple point
-                    const animatedIcon = L.divIcon({
-                        className: 'animated-marker black-bounce',
+                const obsDate = new Date(obs.timestamp);
+                const isRecent = obsDate > oneWeekAgo;
+
+                if (isRecent && obs.latitude && obs.longitude && obs.category === 'Maintenance') {
+                    // Simple black pin for maintenance
+                    const blackPinIcon = L.divIcon({
+                        className: 'black-pin-maintenance',
                         html: `<div style="
                             background-color: #000000;
-                            width: 10px;
-                            height: 10px;
+                            width: 8px;
+                            height: 8px;
                             border-radius: 50%;
-                            border: 1px solid #666;
-                            animation: bounce 1.5s infinite;
+                            border: 1px solid #ffffff;
                         "></div>`,
-                        iconSize: [10, 10],
-                        iconAnchor: [5, 5]
+                        iconSize: [8, 8],
+                        iconAnchor: [4, 4]
                     });
 
-                    const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
+                    const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
                         .bindPopup(`
-                            <strong>🔧 LATEST MAINTENANCE (This Week)</strong><br>
+                            <strong>🔧 RECENT MAINTENANCE (This Week)</strong><br>
                             <strong>Type:</strong> ${obs.maintenance_type || 'Unknown'}<br>
-                            <strong>Time:</strong> ${new Date(obs.timestamp).toLocaleString()}<br>
+                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(observationsLayer); // Add to observations layer
+                    marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
+                    markerCount++;
                 }
             });
+
+            console.log('Total black pins created for recent maintenance:', markerCount);
         }
 
         function showLatestIncidents() {
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
+            console.log('Showing black pins for recent INCIDENTS from past week');
+
+            let markerCount = 0;
+
+            // Show simple black pins for recent INCIDENTS only
             allObservations.forEach(obs => {
-                if (obs.category === 'Incident' && new Date(obs.timestamp) > oneWeekAgo) {
-                    // Black bouncing marker - simple point
-                    const animatedIcon = L.divIcon({
-                        className: 'animated-marker black-bounce',
+                const obsDate = new Date(obs.timestamp);
+                const isRecent = obsDate > oneWeekAgo;
+
+                if (isRecent && obs.latitude && obs.longitude && obs.category === 'Incident') {
+                    // Simple black pin for incidents
+                    const blackPinIcon = L.divIcon({
+                        className: 'black-pin-incident',
                         html: `<div style="
                             background-color: #000000;
-                            width: 10px;
-                            height: 10px;
+                            width: 8px;
+                            height: 8px;
                             border-radius: 50%;
-                            border: 1px solid #666;
-                            animation: bounce 1.5s infinite;
+                            border: 1px solid #ffffff;
                         "></div>`,
-                        iconSize: [10, 10],
-                        iconAnchor: [5, 5]
+                        iconSize: [8, 8],
+                        iconAnchor: [4, 4]
                     });
 
-                    const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
+                    const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
                         .bindPopup(`
-                            <strong>🚨 LATEST INCIDENT (This Week)</strong><br>
+                            <strong>🚨 RECENT INCIDENT (This Week)</strong><br>
                             <strong>Type:</strong> ${obs.incident_type || 'Unknown'}<br>
-                            <strong>Time:</strong> ${new Date(obs.timestamp).toLocaleString()}<br>
+                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(observationsLayer); // Add to observations layer
+                    marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
+                    markerCount++;
                 }
             });
+
+            console.log('Total black pins created for recent incidents:', markerCount);
         }
 
         function updateStats() {
@@ -959,8 +986,10 @@
             // Species filter
             document.getElementById('species-select').addEventListener('change', applyFilters);
 
-            // Latest activity toggle
-            document.getElementById('latest-sightings-toggle').addEventListener('change', applyLatestFilters);
+            // Latest toggles for each category
+            ['latest-sightings-toggle', 'latest-maintenance-toggle', 'latest-incidents-toggle'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applyLatestFilters);
+            });
         }
 
         // Start the map
