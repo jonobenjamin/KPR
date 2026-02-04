@@ -344,28 +344,12 @@
                 layer.setText(null);
                 
                 if (zoom >= minZoom) {
-                    // Use the plugin's built-in orientation handling
+                    // Simply apply text - let it follow the natural path direction
                     layer.setText('  ' + roadName + '  ', {
                         repeat: false,
                         center: true,
                         offset: 8,
-                        orientation: function(angle, coords, point) {
-                            // This function is called dynamically by the plugin
-                            // angle: the natural angle of the text
-                            // Return angle adjustment to keep text readable
-                            
-                            // Normalize angle to -180 to 180
-                            while (angle > 180) angle -= 360;
-                            while (angle < -180) angle += 360;
-                            
-                            // If text would be upside down (angle between 90 and 270 or -90 and -270)
-                            if (angle > 90 && angle <= 180) {
-                                return angle - 180; // Flip it
-                            } else if (angle < -90 && angle >= -180) {
-                                return angle + 180; // Flip it
-                            }
-                            return angle; // Keep as is
-                        },
+                        below: false,
                         attributes: {
                             'font-size': '13px',
                             'font-weight': 'bold',
@@ -382,6 +366,26 @@
             });
         }
 
+        // Check if a coordinate array would create upside-down text
+        function shouldReverseCoords(coords) {
+            if (!coords || coords.length < 2) return false;
+            
+            // Get start and end points
+            const start = coords[0];
+            const end = coords[coords.length - 1];
+            
+            // Calculate the overall direction
+            const dx = end[0] - start[0]; // longitude difference
+            const dy = end[1] - start[1]; // latitude difference
+            
+            // Calculate angle in degrees
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            
+            // Reverse if angle would make text upside-down
+            // (pointing generally westward or southward: angle > 90 or < -90)
+            return (angle > 90 || angle < -90);
+        }
+
         // Load roads from local file
         async function loadRoads() {
             try {
@@ -391,6 +395,23 @@
 
                 const geoJson = await response.json();
                 console.log('Roads data loaded, features:', geoJson.features ? geoJson.features.length : 'none');
+
+                // Pre-process features to reverse upside-down segments
+                geoJson.features.forEach(feature => {
+                    if (feature.geometry && feature.geometry.type === 'MultiLineString') {
+                        feature.geometry.coordinates = feature.geometry.coordinates.map(lineString => {
+                            // Check if this linestring would create upside-down text
+                            if (shouldReverseCoords(lineString)) {
+                                return [...lineString].reverse();
+                            }
+                            return lineString;
+                        });
+                    } else if (feature.geometry && feature.geometry.type === 'LineString') {
+                        if (shouldReverseCoords(feature.geometry.coordinates)) {
+                            feature.geometry.coordinates = [...feature.geometry.coordinates].reverse();
+                        }
+                    }
+                });
 
                 const roadsGeoJson = L.geoJSON(geoJson, {
                     style: {
