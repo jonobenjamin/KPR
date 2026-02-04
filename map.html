@@ -334,6 +334,22 @@
         // Store road layers for zoom-based label management
         let roadLayers = [];
 
+        // Function to calculate angle between two points
+        function calculateAngle(point1, point2) {
+            const dx = point2.lng - point1.lng;
+            const dy = point2.lat - point1.lat;
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            return angle;
+        }
+
+        // Function to check if text would be upside down at given angle
+        function isUpsideDown(angle) {
+            // Normalize angle to 0-360
+            angle = ((angle % 360) + 360) % 360;
+            // Text is upside down if angle is between 90 and 270 degrees
+            return angle > 90 && angle < 270;
+        }
+
         // Function to update road labels based on zoom level
         function updateRoadLabels() {
             const zoom = map.getZoom();
@@ -344,8 +360,7 @@
                 layer.setText(null);
                 
                 if (zoom >= minZoom) {
-                    // Show labels at high zoom to prevent overlap
-                    // Get the line coordinates to determine orientation
+                    // Get the line coordinates to determine orientation at center
                     const latlngs = layer.getLatLngs();
                     let textOptions = {
                         repeat: false,
@@ -364,15 +379,27 @@
                         }
                     };
                     
-                    // Check if line goes roughly right-to-left (would be upside down)
+                    // Calculate angle at the CENTER portion where text will appear
                     if (latlngs && latlngs.length >= 2) {
-                        const start = latlngs[0];
-                        const end = latlngs[latlngs.length - 1];
+                        // Find the middle segment of the road
+                        const midIndex = Math.floor(latlngs.length / 2);
                         
-                        // If end longitude is less than start longitude, line goes right-to-left
-                        // Text would be upside down, so we reverse it
-                        if (end.lng < start.lng) {
-                            // Reverse the text by setting orientation angle
+                        // Get points around the center
+                        let point1, point2;
+                        if (latlngs.length === 2) {
+                            point1 = latlngs[0];
+                            point2 = latlngs[1];
+                        } else {
+                            // Use the segment at the center of the road
+                            point1 = latlngs[Math.max(0, midIndex - 1)];
+                            point2 = latlngs[Math.min(latlngs.length - 1, midIndex + 1)];
+                        }
+                        
+                        // Calculate the angle of this center segment
+                        const angle = calculateAngle(point1, point2);
+                        
+                        // If text would be upside down, flip it 180 degrees
+                        if (isUpsideDown(angle)) {
                             textOptions.orientation = 180;
                         }
                     }
