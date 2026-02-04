@@ -149,7 +149,7 @@
                 <!-- Latest Sightings Toggle -->
                 <div class="latest-toggle">
                     <input type="checkbox" id="latest-sightings-toggle">
-                    <label for="latest-sightings-toggle">Show Latest Sightings (This Week)</label>
+                    <label for="latest-sightings-toggle">Show Recent Activity (This Week)</label>
                 </div>
 
             </div>
@@ -162,10 +162,11 @@
                     <span class="stat-label">Total Maintenance</span>
                 </div>
 
-                <div class="latest-toggle">
+                <!-- Maintenance toggle hidden - using single recent activity toggle -->
+                <!-- <div class="latest-toggle">
                     <input type="checkbox" id="latest-maintenance-toggle">
                     <label for="latest-maintenance-toggle">Show Latest Maintenance</label>
-                </div>
+                </div> -->
             </div>
 
             <!-- Incidents Stats -->
@@ -176,10 +177,11 @@
                     <span class="stat-label">Total Incidents</span>
                 </div>
 
-                <div class="latest-toggle">
+                <!-- Incidents toggle hidden - using single recent activity toggle -->
+                <!-- <div class="latest-toggle">
                     <input type="checkbox" id="latest-incidents-toggle">
                     <label for="latest-incidents-toggle">Show Latest Incidents</label>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
@@ -764,88 +766,64 @@
         }
 
         function applyLatestFilters() {
-            console.log('Applying latest filters for view:', currentView);
+            console.log('Applying latest filters');
             clearLatestMarkers();
 
-            if (currentView === 'sightings' && document.getElementById('latest-sightings-toggle').checked) {
-                console.log('Showing latest sightings');
+            // Show black pins for all recent observations when latest sightings is toggled
+            if (document.getElementById('latest-sightings-toggle').checked) {
+                console.log('Showing black pins for all recent observations');
                 showLatestSightings();
-            } else if (currentView === 'maintenance' && document.getElementById('latest-maintenance-toggle').checked) {
-                console.log('Showing latest maintenance');
-                showLatestMaintenance();
-            } else if (currentView === 'incidents' && document.getElementById('latest-incidents-toggle').checked) {
-                console.log('Showing latest incidents');
-                showLatestIncidents();
-            } else {
-                console.log('No latest filters active');
             }
 
-            console.log('Latest markers after filtering:', latestMarkers.length);
+            console.log('Latest markers created:', latestMarkers.length);
         }
 
         function showLatestSightings() {
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-            const selectedSpecies = document.getElementById('species-select').value;
-
-            console.log('Showing latest sightings, total observations:', allObservations.length);
-            console.log('One week ago:', oneWeekAgo.toISOString());
-
-            // Check if we have any recent sightings
-            const recentSightings = allObservations.filter(obs =>
-                obs.category === 'Sighting' &&
-                new Date(obs.timestamp) > oneWeekAgo
-            );
-            console.log('Recent sightings found:', recentSightings.length);
-            console.log('Recent sighting details:', recentSightings.map(obs => ({
-                timestamp: obs.timestamp,
-                animal: obs.animal,
-                lat: obs.latitude,
-                lng: obs.longitude
-            })));
+            console.log('Showing black pins for ALL observations from past week');
 
             let markerCount = 0;
 
+            // Show simple black pins for ALL observations from the past week
             allObservations.forEach(obs => {
                 const obsDate = new Date(obs.timestamp);
                 const isRecent = obsDate > oneWeekAgo;
-                const matchesSpecies = !selectedSpecies || obs.animal === selectedSpecies;
 
-                // Show recent sightings only
-                if (obs.category === 'Sighting' && isRecent && matchesSpecies) {
-
-                    // Black bouncing marker - simple point
-                    const animatedIcon = L.divIcon({
-                        className: 'animated-marker black-bounce',
+                if (isRecent && obs.latitude && obs.longitude) {
+                    // Simple black pin - no animation, just a black dot
+                    const blackPinIcon = L.divIcon({
+                        className: 'black-pin',
                         html: `<div style="
                             background-color: #000000;
-                            width: 10px;
-                            height: 10px;
+                            width: 8px;
+                            height: 8px;
                             border-radius: 50%;
-                            border: 1px solid #666;
-                            animation: bounce 1.5s infinite;
+                            border: 1px solid #ffffff;
                         "></div>`,
-                        iconSize: [10, 10],
-                        iconAnchor: [5, 5]
+                        iconSize: [8, 8],
+                        iconAnchor: [4, 4]
                     });
 
-                    const marker = L.marker([obs.latitude, obs.longitude], { icon: animatedIcon })
+                    const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
                         .bindPopup(`
-                            <strong>🐘 LATEST SIGHTING (This Week)</strong><br>
-                            <strong>Species:</strong> ${obs.animal || 'Unknown'}<br>
+                            <strong>📍 RECENT ACTIVITY (This Week)</strong><br>
+                            <strong>Type:</strong> ${obs.category}<br>
+                            ${obs.category === 'Sighting' ? `<strong>Species:</strong> ${obs.animal || 'Unknown'}<br>` : ''}
+                            ${obs.category === 'Incident' ? `<strong>Incident:</strong> ${obs.incident_type || 'Unknown'}<br>` : ''}
+                            ${obs.category === 'Maintenance' ? `<strong>Maintenance:</strong> ${obs.maintenance_type || 'Unknown'}<br>` : ''}
                             <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
                             <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
                         `);
 
-                    marker.addTo(observationsLayer); // Add to observations layer
+                    marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
                     markerCount++;
-                    console.log('Added latest sighting marker', markerCount, 'at', obs.latitude, obs.longitude);
                 }
             });
 
-            console.log('Total latest sighting markers created:', markerCount);
+            console.log('Total black pins created for recent observations:', markerCount);
         }
 
         function showLatestMaintenance() {
@@ -981,10 +959,8 @@
             // Species filter
             document.getElementById('species-select').addEventListener('change', applyFilters);
 
-            // Latest toggles
-            ['latest-sightings-toggle', 'latest-maintenance-toggle', 'latest-incidents-toggle'].forEach(id => {
-                document.getElementById(id).addEventListener('change', applyLatestFilters);
-            });
+            // Latest activity toggle
+            document.getElementById('latest-sightings-toggle').addEventListener('change', applyLatestFilters);
         }
 
         // Start the map
