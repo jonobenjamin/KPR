@@ -489,6 +489,25 @@ input:checked + .slider .switch-text {
 
 
 
+/* Road Name Labels */
+.road-name-label {
+    pointer-events: none !important;
+    z-index: 1000 !important;
+}
+
+.road-name-label div {
+    font-family: Arial, sans-serif !important;
+    color: #000 !important;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.9) !important;
+    background: rgba(255,255,255,0.8) !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+    border: 1px solid rgba(0,0,0,0.2) !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .main-content {
