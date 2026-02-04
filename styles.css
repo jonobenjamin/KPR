@@ -487,16 +487,16 @@ input:checked + .slider .switch-text {
     box-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 
-/* Road Labels */
-.road-label {
-    font-family: Arial, sans-serif;
-    pointer-events: none; /* Don't interfere with clicks */
+
+/* Road Text Path */
+.road-text-path {
+    pointer-events: none;
     z-index: 1000;
 }
 
-.road-label div {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    backdrop-filter: blur(1px);
+.road-text-path div {
+    font-family: Arial, sans-serif;
+    text-align: center;
 }
 
 /* Responsive Design */
