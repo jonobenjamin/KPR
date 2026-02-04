@@ -331,6 +331,62 @@
             }
         }
 
+        // Store road layers for zoom-based label management
+        let roadLayers = [];
+
+        // Function to update road labels based on zoom level
+        function updateRoadLabels() {
+            const zoom = map.getZoom();
+            const minZoom = 13; // Only show labels at zoom 13 or higher
+
+            roadLayers.forEach(({ layer, roadName }) => {
+                if (zoom >= minZoom) {
+                    // Show labels at high zoom to prevent overlap
+                    if (!layer._textPath) {
+                        // Calculate orientation to prevent upside-down text
+                        const latlngs = layer.getLatLngs();
+                        if (latlngs && latlngs.length >= 2) {
+                            const start = latlngs[0];
+                            const end = latlngs[latlngs.length - 1];
+                            
+                            // Calculate bearing from start to end
+                            const bearing = Math.atan2(
+                                end.lng - start.lng,
+                                end.lat - start.lat
+                            ) * (180 / Math.PI);
+                            
+                            // If bearing indicates upside-down text (roughly 90-270 degrees), reverse it
+                            const isUpsideDown = bearing > 90 && bearing < 270;
+                            
+                            layer.setText('  ' + roadName + '  ', {
+                                repeat: false,
+                                center: true,
+                                offset: 8,
+                                below: isUpsideDown, // Flip to other side if upside down
+                                orientation: isUpsideDown ? bearing + 180 : bearing, // Rotate to keep readable
+                                attributes: {
+                                    'font-size': '13px',
+                                    'font-weight': 'bold',
+                                    'font-family': 'Arial, sans-serif',
+                                    'fill': '#000',
+                                    'stroke': '#fff',
+                                    'stroke-width': '3.5',
+                                    'paint-order': 'stroke',
+                                    'stroke-opacity': '0.9',
+                                    'letter-spacing': '1.5'
+                                }
+                            });
+                        }
+                    }
+                } else {
+                    // Hide labels at low zoom to prevent overlap
+                    if (layer._textPath) {
+                        layer.setText(null);
+                    }
+                }
+            });
+        }
+
         // Load roads from local file
         async function loadRoads() {
             try {
@@ -354,31 +410,22 @@
                             // Add popup
                             layer.bindPopup(`<strong>${roadName}</strong>`);
 
-                            // Add text that follows the road path (like Google Maps)
-                            layer.setText('  ' + roadName + '  ', {
-                                repeat: false,            // Show only once per road segment
-                                center: true,             // Center the text on the road
-                                offset: 8,
-                                attributes: {
-                                    'font-size': '12px',
-                                    'font-weight': 'bold',
-                                    'font-family': 'Arial, sans-serif',
-                                    'fill': '#000',
-                                    'stroke': '#fff',
-                                    'stroke-width': '3',
-                                    'paint-order': 'stroke',
-                                    'stroke-opacity': '0.8',
-                                    'letter-spacing': '1'
-                                }
-                            });
+                            // Store layer for zoom-based label management
+                            roadLayers.push({ layer, roadName });
 
-                            console.log('Added curved text label for road:', roadName);
+                            console.log('Added road:', roadName);
                         }
                     }
                 });
 
                 roadsGeoJson.addTo(roadsLayer);
                 console.log('Roads GeoJSON added to roadsLayer, features:', geoJson.features.length);
+
+                // Set up zoom event listener for labels
+                map.on('zoomend', updateRoadLabels);
+                
+                // Initial label update
+                updateRoadLabels();
 
             } catch (error) {
                 console.error('Error loading roads:', error);
