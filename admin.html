@@ -401,15 +401,16 @@
             users.forEach(user => {
                 const row = document.createElement('tr');
 
-                const registeredDate = user.registeredAt?.toDate?.() || new Date(user.registeredAt);
-                const lastLoginDate = user.lastLogin?.toDate?.() || new Date(user.lastLogin);
+                // Parse ISO date strings properly
+                const registeredDate = user.registeredAt ? new Date(user.registeredAt) : null;
+                const lastLoginDate = user.lastLogin ? new Date(user.lastLogin) : null;
 
                 row.innerHTML = `
                     <td>${user.name || 'N/A'}</td>
                     <td>${user.email || user.phone || 'N/A'}</td>
                     <td><span class="status ${user.status}">${user.status}</span></td>
-                    <td>${registeredDate.toLocaleDateString()}</td>
-                    <td>${user.lastLogin ? lastLoginDate.toLocaleDateString() : 'Never'}</td>
+                    <td>${registeredDate ? registeredDate.toLocaleDateString() : 'N/A'}</td>
+                    <td>${lastLoginDate ? lastLoginDate.toLocaleDateString() : 'Never'}</td>
                     <td class="actions">
                         ${user.status === 'active'
                             ? `<button class="btn btn-small danger" onclick="revokeUser('${user.uid}')">Revoke</button>`
