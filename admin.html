@@ -350,38 +350,11 @@
             const password = document.getElementById('password').value;
 
             if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-                try {
-                    // For now, we'll use a simple token-based approach
-                    // In production, you should authenticate with Firebase and get a proper token
-                    const response = await fetch(`${API_BASE_URL}/auth/request-pin`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            email: 'admin@wildlifetracker.local',
-                            name: 'Admin User'
-                        })
-                    });
-
-                    if (response.ok) {
-                        // For demo purposes, create a mock token
-                        // In production, you'd get a real Firebase token
-                        adminToken = 'admin_' + Date.now();
-                        sessionStorage.setItem('adminToken', adminToken);
-                        showDashboard();
-                        loadUsers();
-                    } else {
-                        throw new Error('Failed to authenticate');
-                    }
-                } catch (error) {
-                    console.warn('API auth failed, but allowing admin access for demo');
-                    // For demo purposes, still allow access
-                    adminToken = 'admin_' + Date.now();
-                    sessionStorage.setItem('adminToken', adminToken);
-                    showDashboard();
-                    loadUsers();
-                }
+                // Simple admin authentication - store session
+                adminToken = 'admin_' + Date.now();
+                sessionStorage.setItem('adminToken', adminToken);
+                showDashboard();
+                loadUsers();
             } else {
                 showAlert('login-alert', 'Invalid username or password', 'error');
             }
@@ -393,7 +366,7 @@
                 const response = await fetch(`${API_BASE_URL}/admin/users`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${adminToken}`,
+                        'x-admin-key': 'wildlife_admin_2024', // Admin API key
                         'Content-Type': 'application/json',
                     },
                 });
@@ -468,7 +441,7 @@
                 const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${adminToken}`,
+                        'x-admin-key': 'wildlife_admin_2024', // Admin API key
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ status: 'revoked' })
@@ -496,7 +469,7 @@
                 const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${adminToken}`,
+                        'x-admin-key': 'wildlife_admin_2024', // Admin API key
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ status: 'active' })
