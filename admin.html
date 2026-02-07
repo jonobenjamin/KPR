@@ -363,9 +363,10 @@
         // Load users from API
         async function loadUsers() {
             try {
-                const response = await fetch(`${API_BASE_URL}/admin/users?adminKey=wildlife_admin_2024`, {
+                const response = await fetch(`${API_BASE_URL}/admin/users`, {
                     method: 'GET',
                     headers: {
+                        'x-api-key': 'wildlife_admin_2024',
                         'Content-Type': 'application/json',
                     },
                 });
@@ -437,9 +438,10 @@
             if (!confirm('Are you sure you want to revoke this user\'s access?')) return;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status?adminKey=wildlife_admin_2024`, {
+                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
                     method: 'PATCH',
                     headers: {
+                        'x-api-key': 'wildlife_admin_2024',
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ status: 'revoked' })
@@ -464,9 +466,10 @@
 
         window.restoreUser = async function(userId) {
             try {
-                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status?adminKey=wildlife_admin_2024`, {
+                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
                     method: 'PATCH',
                     headers: {
+                        'x-api-key': 'wildlife_admin_2024',
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ status: 'active' })
