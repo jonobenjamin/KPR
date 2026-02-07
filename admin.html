@@ -308,38 +308,10 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Admin Panel Script -->
     <script type="module">
-        // Firebase configuration - replace with your actual config
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import {
-            getAuth,
-            signInWithEmailAndPassword,
-            signOut as firebaseSignOut,
-            onAuthStateChanged
-        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import {
-            getFirestore,
-            collection,
-            getDocs,
-            doc,
-            updateDoc,
-            query,
-            orderBy
-        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-        const firebaseConfig = {
-            apiKey: "your-api-key",
-            authDomain: "your-project.firebaseapp.com",
-            projectId: "your-project-id",
-            storageBucket: "your-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "your-app-id"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // API configuration
+        const API_BASE_URL = 'https://wildlife-tracker-gxz5.vercel.app/api';
 
         // Admin credentials (in production, use environment variables or secure storage)
         const ADMIN_CREDENTIALS = {
@@ -347,7 +319,7 @@
             password: 'wildlife2024!' // Change this in production!
         };
 
-        let currentUser = null;
+        let adminToken = null;
 
         // DOM elements
         const loginScreen = document.getElementById('login-screen');
@@ -356,15 +328,19 @@
         const usersBody = document.getElementById('users-body');
 
         // Initialize
-        onAuthStateChanged(auth, (user) => {
-            if (user && sessionStorage.getItem('adminAuthenticated') === 'true') {
-                currentUser = user;
+        function initialize() {
+            const token = sessionStorage.getItem('adminToken');
+            if (token) {
+                adminToken = token;
                 showDashboard();
                 loadUsers();
             } else {
                 showLogin();
             }
-        });
+        }
+
+        // Initialize on page load
+        initialize();
 
         // Login form handler
         loginForm.addEventListener('submit', async (e) => {
@@ -375,15 +351,34 @@
 
             if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
                 try {
-                    // Use Firebase anonymous auth for session management
-                    await signInWithEmailAndPassword(auth, 'admin@wildlifetracker.local', 'admin123!');
-                    sessionStorage.setItem('adminAuthenticated', 'true');
-                    showDashboard();
-                    loadUsers();
+                    // For now, we'll use a simple token-based approach
+                    // In production, you should authenticate with Firebase and get a proper token
+                    const response = await fetch(`${API_BASE_URL}/auth/request-pin`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: 'admin@wildlifetracker.local',
+                            name: 'Admin User'
+                        })
+                    });
+
+                    if (response.ok) {
+                        // For demo purposes, create a mock token
+                        // In production, you'd get a real Firebase token
+                        adminToken = 'admin_' + Date.now();
+                        sessionStorage.setItem('adminToken', adminToken);
+                        showDashboard();
+                        loadUsers();
+                    } else {
+                        throw new Error('Failed to authenticate');
+                    }
                 } catch (error) {
-                    // If Firebase auth fails, still allow access (for demo purposes)
-                    console.warn('Firebase auth failed, but allowing admin access');
-                    sessionStorage.setItem('adminAuthenticated', 'true');
+                    console.warn('API auth failed, but allowing admin access for demo');
+                    // For demo purposes, still allow access
+                    adminToken = 'admin_' + Date.now();
+                    sessionStorage.setItem('adminToken', adminToken);
                     showDashboard();
                     loadUsers();
                 }
@@ -392,22 +387,32 @@
             }
         });
 
-        // Load users from Firestore
+        // Load users from API
         async function loadUsers() {
             try {
-                const usersQuery = query(collection(db, 'users'), orderBy('registeredAt', 'desc'));
-                const querySnapshot = await getDocs(usersQuery);
-
-                const users = [];
-                querySnapshot.forEach((doc) => {
-                    users.push({ id: doc.id, ...doc.data() });
+                const response = await fetch(`${API_BASE_URL}/admin/users`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json',
+                    },
                 });
 
-                displayUsers(users);
-                updateStats(users);
+                if (!response.ok) {
+                    throw new Error(`Failed to load users: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayUsers(data.users);
+                    updateStats(data.stats);
+                } else {
+                    throw new Error(data.message || 'Failed to load users');
+                }
             } catch (error) {
                 console.error('Error loading users:', error);
-                showAlert('dashboard-alert', 'Failed to load users', 'error');
+                showAlert('dashboard-alert', 'Failed to load users: ' + error.message, 'error');
             }
         }
 
@@ -434,8 +439,8 @@
                     <td>${user.lastLogin ? lastLoginDate.toLocaleDateString() : 'Never'}</td>
                     <td class="actions">
                         ${user.status === 'active'
-                            ? `<button class="btn btn-small danger" onclick="revokeUser('${user.id}')">Revoke</button>`
-                            : `<button class="btn btn-small success" onclick="restoreUser('${user.id}')">Restore</button>`
+                            ? `<button class="btn btn-small danger" onclick="revokeUser('${user.uid}')">Revoke</button>`
+                            : `<button class="btn btn-small success" onclick="restoreUser('${user.uid}')">Restore</button>`
                         }
                     </td>
                 `;
@@ -460,23 +465,57 @@
             if (!confirm('Are you sure you want to revoke this user\'s access?')) return;
 
             try {
-                await updateDoc(doc(db, 'users', userId), { status: 'revoked' });
-                showAlert('dashboard-alert', 'User access revoked', 'success');
-                loadUsers();
+                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: 'revoked' })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to revoke user: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('dashboard-alert', 'User access revoked', 'success');
+                    loadUsers();
+                } else {
+                    throw new Error(data.message || 'Failed to revoke user');
+                }
             } catch (error) {
                 console.error('Error revoking user:', error);
-                showAlert('dashboard-alert', 'Failed to revoke user', 'error');
+                showAlert('dashboard-alert', 'Failed to revoke user: ' + error.message, 'error');
             }
         };
 
         window.restoreUser = async function(userId) {
             try {
-                await updateDoc(doc(db, 'users', userId), { status: 'active' });
-                showAlert('dashboard-alert', 'User access restored', 'success');
-                loadUsers();
+                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: 'active' })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to restore user: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('dashboard-alert', 'User access restored', 'success');
+                    loadUsers();
+                } else {
+                    throw new Error(data.message || 'Failed to restore user');
+                }
             } catch (error) {
                 console.error('Error restoring user:', error);
-                showAlert('dashboard-alert', 'Failed to restore user', 'error');
+                showAlert('dashboard-alert', 'Failed to restore user: ' + error.message, 'error');
             }
         };
 
@@ -505,12 +544,8 @@
 
         // Logout function
         window.logout = async function() {
-            try {
-                await firebaseSignOut(auth);
-            } catch (error) {
-                console.warn('Firebase sign out failed:', error);
-            }
-            sessionStorage.removeItem('adminAuthenticated');
+            adminToken = null;
+            sessionStorage.removeItem('adminToken');
             showLogin();
         };
     </script>
