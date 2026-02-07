@@ -378,8 +378,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    displayUsers(data.users);
-                    updateStats(data.stats);
+                displayUsers(data.users);
+                updateStats(data.stats);
                 } else {
                     throw new Error(data.message || 'Failed to load users');
                 }
@@ -424,14 +424,10 @@
         }
 
         // Update statistics
-        function updateStats(users) {
-            const total = users.length;
-            const active = users.filter(u => u.status === 'active').length;
-            const revoked = users.filter(u => u.status === 'revoked').length;
-
-            document.getElementById('total-users').textContent = total;
-            document.getElementById('active-users').textContent = active;
-            document.getElementById('revoked-users').textContent = revoked;
+        function updateStats(stats) {
+            document.getElementById('total-users').textContent = stats.total || 0;
+            document.getElementById('active-users').textContent = stats.active || 0;
+            document.getElementById('revoked-users').textContent = stats.revoked || 0;
         }
 
         // User management functions
