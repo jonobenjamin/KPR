@@ -333,13 +333,13 @@
             maxZoom: 18,
         }).addTo(map);
 
-        // Layer groups for different data types
+        // Layer groups for different data types (ordered by z-index: bottom to top)
         const boundaryLayer = L.layerGroup().addTo(map);
         const roadsLayer = L.layerGroup().addTo(map);
         const hotspotLayer = L.layerGroup().addTo(map);
-        const campsLayer = L.layerGroup().addTo(map);
+        const observationsLayer = L.layerGroup().addTo(map); // actual markers
         const treesLayer = L.layerGroup().addTo(map);
-        const observationsLayer = L.layerGroup().addTo(map);
+        const campsLayer = L.layerGroup().addTo(map); // camps always on top
 
         // Store markers by type for filtering
         const markersByType = {
@@ -1182,23 +1182,35 @@
                 console.log('Hotspot mode: showing', points.length, 'points from filtered observations');
                 console.log('Sample points:', points.slice(0, 3));
 
+                // If no real points, add some test points around the map center for debugging
+                if (points.length === 0) {
+                    console.log('No real data points found, adding test points for debugging');
+                    const center = map.getCenter();
+                    points = [
+                        [center.lat + 0.01, center.lng + 0.01, 1],
+                        [center.lat - 0.01, center.lng - 0.01, 1],
+                        [center.lat + 0.005, center.lng - 0.005, 1]
+                    ];
+                }
+
                 if (points.length > 0) {
                     const heatLayer = L.heatLayer(points, {
-                        radius: 25,      // smaller, denser hotspots
-                        blur: 15,        // less blur for sharper hotspots
+                        radius: 30,      // larger radius for visibility
+                        blur: 20,        // more blur for smoother appearance
                         maxZoom: 17,
-                        minOpacity: 0.6, // less transparent
+                        minOpacity: 0.8, // more opaque
+                        max: 1.0,        // normalize intensity
                         // blue → green → yellow → red
                         gradient: {
-                            0.0: '#2c7bb6',
-                            0.25: '#00a6ca',
-                            0.45: '#00ccbc',
-                            0.6: '#90eb9d',
-                            0.75: '#ffff8c',
-                            0.9: '#f9d057',
-                            1.0: '#d7191c'
+                            0.0: '#0000ff',  // bright blue
+                            0.25: '#00ff00', // bright green
+                            0.5: '#ffff00',  // bright yellow
+                            0.75: '#ff8000', // orange
+                            1.0: '#ff0000'   // bright red
                         }
                     }).addTo(hotspotLayer);
+
+                    console.log('Heat layer created and added to map');
                 }
             } else {
                 // Show individual markers (actual locations)
@@ -1694,29 +1706,32 @@
                     }
             });
 
-            // Display mode switch (Hotspots/Actual)
-            document.getElementById('display-mode-toggle').addEventListener('change', function() {
-                displayMode = this.checked ? 'hotspot' : 'actual';
-                console.log('Display mode changed to:', displayMode, 'for view:', currentView);
+            // Display mode switch (Hotspots/Actual) - use event delegation for reliability
+            document.addEventListener('change', function(e) {
+                if (e.target && e.target.id === 'display-mode-toggle') {
+                    displayMode = e.target.checked ? 'hotspot' : 'actual';
+                    console.log('Display mode changed to:', displayMode, 'for view:', currentView);
+                    alert('Display mode changed to: ' + displayMode + ' (check console for details)');
 
-                // Update switch text
-                const switchText = this.parentElement.querySelector('.switch-text');
-                if (switchText) switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
+                    // Update switch text
+                    const switchText = e.target.parentElement.querySelector('.switch-text');
+                    if (switchText) switchText.textContent = e.target.checked ? 'Hotspots' : 'Actual';
 
-                // Show/hide species legend for actual locations mode
-                if (displayMode === 'actual' && currentView === 'sightings') {
-                    showSpeciesLegend();
-                } else if (currentView === 'trees') {
-                    // Trees legend is handled in displayTrees()
-                } else {
-                    hideSpeciesLegend();
-                }
+                    // Show/hide species legend for actual locations mode
+                    if (displayMode === 'actual' && currentView === 'sightings') {
+                        showSpeciesLegend();
+                    } else if (currentView === 'trees') {
+                        // Trees legend is handled in displayTrees()
+                    } else {
+                        hideSpeciesLegend();
+                    }
 
-                // Handle display mode changes based on current view
-                if (currentView === 'trees') {
-                    displayTrees(); // Update trees display mode
-                } else if (currentView === 'sightings' || currentView === 'maintenance' || currentView === 'incidents' || currentView === 'water-monitoring') {
-                    applyFilters(); // Update other views
+                    // Handle display mode changes based on current view
+                    if (currentView === 'trees') {
+                        displayTrees(); // Update trees display mode
+                    } else if (currentView === 'sightings' || currentView === 'maintenance' || currentView === 'incidents' || currentView === 'water-monitoring') {
+                        applyFilters(); // Update other views
+                    }
                 }
             });
 
