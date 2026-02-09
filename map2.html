@@ -756,6 +756,10 @@
                     loadRoads(),
                     loadObservations()
                 ]);
+
+                // Always show water monitoring markers
+                showWaterMonitoringMarkers();
+
                 hideLoading();
                 console.log('Map initialization complete');
             } catch (error) {
@@ -827,21 +831,17 @@
             // Clear existing water monitoring markers
             hideWaterMonitoringMarkers();
 
+            // Create custom icon using KPR.svg
+            const waterMonitoringIcon = L.icon({
+                iconUrl: 'data/icons/KPR.svg',
+                iconSize: [32, 32], // Size of the icon
+                iconAnchor: [16, 32], // Point of the icon which corresponds to marker's location
+                popupAnchor: [0, -32] // Point from which the popup should open relative to the iconAnchor
+            });
+
             Object.values(waterMonitoringLocations).forEach(location => {
                 const marker = L.marker(location.coords, {
-                    icon: L.divIcon({
-                        className: 'water-monitoring-marker',
-                        html: `<div style="
-                            background-color: #1e90ff;
-                            width: 12px;
-                            height: 12px;
-                            border-radius: 50%;
-                            border: 2px solid #ffffff;
-                            box-shadow: 0 0 4px rgba(0,0,0,0.5);
-                        "></div>`,
-                        iconSize: [12, 12],
-                        iconAnchor: [6, 6]
-                    })
+                    icon: waterMonitoringIcon
                 })
                 .bindPopup(`
                     <strong>${location.name}</strong><br>
@@ -862,6 +862,14 @@
                 }
             });
             waterMonitoringMarkers = [];
+        }
+
+        // Clear sightings markers (for water monitoring mode)
+        function clearSightingsMarkers() {
+            // Clear all observation markers when in water monitoring mode
+            observationsLayer.clearLayers();
+            clearLatestMarkers();
+            hideSpeciesLegend();
         }
 
         // Show water monitoring graph for a location
@@ -1439,6 +1447,19 @@
                     document.getElementById('water-monitoring-group').style.display =
                         currentView === 'water-monitoring' ? 'block' : 'none';
 
+                    // Show/hide date controls for water monitoring
+                    const allControlGroups = document.querySelectorAll('.control-group');
+
+                    if (currentView === 'water-monitoring') {
+                        // Hide date range and month/year controls (first two groups)
+                        allControlGroups[0].style.display = 'none'; // Date Range
+                        allControlGroups[1].style.display = 'none'; // Month & Year
+                    } else {
+                        // Show date controls for other views
+                        allControlGroups[0].style.display = 'block'; // Date Range
+                        allControlGroups[1].style.display = 'block'; // Month & Year
+                    }
+
                     // Show/hide species legend for actual locations mode
                     if (displayMode === 'actual' && currentView === 'sightings') {
                         showSpeciesLegend();
@@ -1446,11 +1467,12 @@
                         hideSpeciesLegend();
                     }
 
-                    // Show/hide water monitoring markers
+                    // Water monitoring markers are always shown
+                    showWaterMonitoringMarkers();
+
+                    // Clear sightings markers when in water monitoring mode
                     if (currentView === 'water-monitoring') {
-                        showWaterMonitoringMarkers();
-                    } else {
-                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
                     }
 
                     // Reapply filters
