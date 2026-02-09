@@ -46,6 +46,7 @@
                 <h4>View Mode</h4>
                 <select id="view-mode-select" class="view-select">
                     <option value="sightings" selected>Sightings</option>
+                    <option value="trees">Trees</option>
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
                     <option value="water-monitoring">Water Monitoring</option>
@@ -153,6 +154,39 @@
                     <label for="latest-sightings-toggle">Show Recent Sightings (This Week)</label>
                 </div>
 
+            </div>
+
+            <!-- Trees Filter (Trees only) -->
+            <div class="control-group" id="trees-group" style="display: none;">
+                <h4>Tree Filter</h4>
+                <div class="species-filter">
+                    <select id="tree-select">
+                        <option value="">All Trees</option>
+                        <option value="sickle-leaved-albizia">Sickle Leaved Albizia</option>
+                        <option value="sausage-tree">Sausage Tree</option>
+                        <option value="african-mangosteen">African Mangosteen</option>
+                        <option value="camel-thorn">Camel Thorn</option>
+                    </select>
+                </div>
+
+                <!-- Stats Display -->
+                <div class="stats-display">
+                    <span class="stat-number" id="trees-count">0</span>
+                    <span class="stat-label">Total Trees</span>
+                </div>
+
+                <!-- Display Mode Switch -->
+                <div class="control-group">
+                    <h4>Display Mode</h4>
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="trees-display-mode-toggle">
+                            <span class="slider round">
+                                <span class="switch-text" data-on="Hotspots" data-off="Actual">Actual</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <!-- Maintenance Stats -->
@@ -303,6 +337,7 @@
         const boundaryLayer = L.layerGroup().addTo(map);
         const roadsLayer = L.layerGroup().addTo(map);
         const campsLayer = L.layerGroup().addTo(map);
+        const treesLayer = L.layerGroup().addTo(map);
         const observationsLayer = L.layerGroup().addTo(map);
 
         // Store markers by type for filtering
@@ -325,6 +360,17 @@
             'cheetah': '#FFD700',     // Gold
             'hippo': '#4682B4'        // Steel blue
         };
+
+        // Tree color mapping
+        const treeColors = {
+            'sickle-leaved-albizia': '#228B22',    // Forest green
+            'sausage-tree': '#8B4513',             // Saddle brown
+            'african-mangosteen': '#FFD700',       // Gold
+            'camel-thorn': '#DAA520'               // Goldenrod
+        };
+
+        // Tree data
+        let allTrees = [];
 
         // Current view state
         let currentView = 'sightings';
@@ -582,6 +628,29 @@
             }
         }
 
+        // Load trees from local file
+        async function loadTrees() {
+            try {
+                console.log('Loading trees...');
+                const response = await fetch('data/geojson/Wrapped_trees.geojson');
+                if (!response.ok) throw new Error(`Trees file not found: ${response.status}`);
+
+                const geoJson = await response.json();
+                console.log('Trees data loaded:', geoJson);
+
+                allTrees = geoJson.features || [];
+                console.log('Trees loaded successfully, count:', allTrees.length);
+
+                // Log unique tree species for debugging
+                const uniqueSpecies = [...new Set(allTrees.map(tree => tree.properties?.Species).filter(Boolean))];
+                console.log('Unique tree species:', uniqueSpecies);
+
+            } catch (error) {
+                console.error('Error loading trees:', error);
+                showError('Failed to load trees data');
+            }
+        }
+
         // Load observations
         async function loadObservations() {
             try {
@@ -691,6 +760,7 @@
                     loadBoundary(),
                     loadRoads(),
                     loadCamps(),
+                    loadTrees(),
                     loadObservations()
                 ]);
 
@@ -758,6 +828,36 @@
                 map.removeControl(speciesLegend);
                 speciesLegend = null;
             }
+        }
+
+        function showTreesLegend() {
+            // Remove existing legend
+            if (speciesLegend) {
+                map.removeControl(speciesLegend);
+            }
+
+            // Create new legend
+            speciesLegend = L.control({ position: 'topright' });
+
+            speciesLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'species-legend');
+                div.innerHTML = `
+                    <h4>Tree Species</h4>
+                    ${Object.entries(treeColors).map(([species, color]) => `
+                        <div class="species-item">
+                            <div class="species-dot" style="background-color: ${color}"></div>
+                            <span class="species-name">${species.replace('-', ' ')}</span>
+                        </div>
+                    `).join('')}
+                `;
+                return div;
+            };
+
+            speciesLegend.addTo(map);
+        }
+
+        function hideTreesLegend() {
+            hideSpeciesLegend(); // Reuse the same function since they use the same variable
         }
 
         // Show water monitoring markers
@@ -1142,6 +1242,9 @@
             // Apply latest toggles
             applyLatestFilters();
 
+            // Handle trees display
+            displayTrees();
+
             updateStats();
         }
 
@@ -1166,6 +1269,116 @@
             }
 
             console.log('Latest markers created:', latestMarkers.length);
+        }
+
+        // Display trees based on current filters
+        function displayTrees() {
+            // Clear existing trees layer
+            treesLayer.clearLayers();
+
+            if (currentView !== 'trees') {
+                return;
+            }
+
+            const selectedTree = document.getElementById('tree-select').value;
+            const treesDisplayMode = document.getElementById('trees-display-mode-toggle').checked ? 'hotspot' : 'actual';
+
+            // Filter trees
+            const filteredTrees = allTrees.filter(tree => {
+                if (!tree.properties || !tree.geometry) return false;
+
+                // Tree type filter
+                if (selectedTree) {
+                    const treeSpecies = (tree.properties.Species || '').toLowerCase().trim();
+                    const filterTree = selectedTree.toLowerCase().trim();
+
+                    // Normalize species names for matching
+                    const treeNormalized = treeSpecies.replace(/\s+/g, '-').replace(/-/g, '');
+                    const filterNormalized = filterTree.replace(/\s+/g, '-').replace(/-/g, '');
+
+                    if (!treeSpecies.includes(filterTree) &&
+                        !treeNormalized.includes(filterNormalized) &&
+                        treeSpecies !== filterTree) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            if (treesDisplayMode === 'hotspot') {
+                // Hide legend in hotspot mode
+                hideTreesLegend();
+
+                // Create heat map for trees
+                const treePoints = filteredTrees
+                    .map(tree => {
+                        const coords = tree.geometry.coordinates;
+                        return [coords[1], coords[0], 1]; // [lat, lng, intensity]
+                    })
+                    .filter(point => point[0] && point[1]);
+
+                console.log('Trees hotspot mode: showing', treePoints.length, 'points');
+
+                if (treePoints.length > 0) {
+                    const heatLayer = L.heatLayer(treePoints, {
+                        radius: 25,
+                        blur: 15,
+                        maxZoom: 17,
+                        minOpacity: 0.6,
+                        gradient: {
+                            0.0: '#228B22',
+                            0.25: '#32CD32',
+                            0.45: '#00FF00',
+                            0.6: '#90EE90',
+                            0.75: '#98FB98',
+                            0.9: '#F0FFF0',
+                            1.0: '#FFFFFF'
+                        }
+                    }).addTo(treesLayer);
+                }
+            } else {
+                // Show legend in actual mode
+                showTreesLegend();
+
+                // Show individual tree markers
+                filteredTrees.forEach(tree => {
+                    if (tree.geometry && tree.geometry.coordinates) {
+                        const coords = tree.geometry.coordinates;
+                        const species = tree.properties.Species || 'Unknown';
+
+                        // Get color for tree species
+                        const speciesKey = species.toLowerCase().replace(/\s+/g, '-');
+                        const color = treeColors[speciesKey] || '#228B22';
+
+                        const treeIcon = L.divIcon({
+                            className: 'tree-marker',
+                            html: `<div style="
+                                background-color: ${color};
+                                width: 10px;
+                                height: 10px;
+                                border-radius: 50%;
+                                border: 2px solid #ffffff;
+                                box-shadow: 0 0 4px rgba(0,0,0,0.5);
+                            "></div>`,
+                            iconSize: [10, 10],
+                            iconAnchor: [5, 5]
+                        });
+
+                        const marker = L.marker([coords[1], coords[0]], { icon: treeIcon })
+                            .bindPopup(`
+                                <strong>${species}</strong><br>
+                                <em>Wrapped Tree</em><br>
+                                <small>Lat: ${coords[1].toFixed(4)}, Lng: ${coords[0].toFixed(4)}</small>
+                            `);
+
+                        marker.addTo(treesLayer);
+                    }
+                });
+            }
+
+            // Update tree count
+            document.getElementById('trees-count').textContent = filteredTrees.length;
         }
 
         function showLatestSightings() {
@@ -1398,6 +1611,8 @@
                     // Show/hide appropriate controls
                     document.getElementById('species-group').style.display =
                         currentView === 'sightings' ? 'block' : 'none';
+                    document.getElementById('trees-group').style.display =
+                        currentView === 'trees' ? 'block' : 'none';
                     document.getElementById('maintenance-group').style.display =
                         currentView === 'maintenance' ? 'block' : 'none';
                     document.getElementById('incidents-group').style.display =
@@ -1408,8 +1623,8 @@
                     // Show/hide date controls for water monitoring
                     const allControlGroups = document.querySelectorAll('.control-group');
 
-                    if (currentView === 'water-monitoring') {
-                        // Hide date range (index 1) and month/year (index 2) controls, but keep view mode (index 0) visible
+                    if (currentView === 'water-monitoring' || currentView === 'trees') {
+                        // Hide date range (index 1) and month/year (index 2) controls for water monitoring and trees
                         allControlGroups[1].style.display = 'none'; // Date Range
                         allControlGroups[2].style.display = 'none'; // Month & Year
                     } else {
@@ -1421,6 +1636,8 @@
                     // Show/hide species legend for actual locations mode
                     if (displayMode === 'actual' && currentView === 'sightings') {
                         showSpeciesLegend();
+                    } else if (currentView === 'trees') {
+                        // Trees legend is handled in displayTrees()
                     } else {
                         hideSpeciesLegend();
                     }
@@ -1430,6 +1647,10 @@
                         showWaterMonitoringMarkers();
                         // In water monitoring mode, don't clear sightings - let them show alongside water markers
                         applyFilters();
+                    } else if (currentView === 'trees') {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        displayTrees();
                     } else {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
@@ -1457,6 +1678,15 @@
                 applyFilters();
             });
 
+            // Trees display mode switch
+            document.getElementById('trees-display-mode-toggle').addEventListener('change', function() {
+                // Update switch text
+                const switchText = this.parentElement.querySelector('.switch-text');
+                switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
+
+                displayTrees();
+            });
+
             // Date filters
             ['start-date', 'end-date', 'month-select', 'year-select'].forEach(id => {
                 document.getElementById(id).addEventListener('change', applyFilters);
@@ -1464,6 +1694,9 @@
 
             // Species filter
             document.getElementById('species-select').addEventListener('change', applyFilters);
+
+            // Tree filter
+            document.getElementById('tree-select').addEventListener('change', displayTrees);
 
             // Latest toggles for each category
             ['latest-sightings-toggle', 'latest-maintenance-toggle', 'latest-incidents-toggle'].forEach(id => {
