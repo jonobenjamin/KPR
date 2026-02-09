@@ -1297,8 +1297,9 @@
 
         // Display trees based on current filters
         function displayTrees() {
-            // Ensure water monitoring markers are hidden
+            // Ensure water monitoring and sightings markers are hidden
             hideWaterMonitoringMarkers();
+            clearSightingsMarkers();
 
             // Clear existing layers
             treesLayer.clearLayers();
