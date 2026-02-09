@@ -694,9 +694,6 @@
                     loadObservations()
                 ]);
 
-                // Always show water monitoring markers
-                showWaterMonitoringMarkers();
-
                 hideLoading();
                 console.log('Map initialization complete');
             } catch (error) {
@@ -768,12 +765,19 @@
             // Clear existing water monitoring markers
             hideWaterMonitoringMarkers();
 
-            // Create custom icon using KPR.svg
-            const waterMonitoringIcon = L.icon({
-                iconUrl: 'data/icons/KPR.svg',
-                iconSize: [32, 32], // Size of the icon
-                iconAnchor: [16, 32], // Point of the icon which corresponds to marker's location
-                popupAnchor: [0, -32] // Point from which the popup should open relative to the iconAnchor
+            // Create blue dot icon for water monitoring (similar to species markers but blue)
+            const waterMonitoringIcon = L.divIcon({
+                className: 'water-monitoring-marker',
+                html: `<div style="
+                    background-color: #1e90ff;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    border: 2px solid #ffffff;
+                    box-shadow: 0 0 6px rgba(30, 144, 255, 0.6);
+                "></div>`,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
             });
 
             Object.values(waterMonitoringLocations).forEach(location => {
@@ -1056,22 +1060,8 @@
 
             if (displayMode === 'hotspot') {
                 // Create heat map using Leaflet.heat plugin
-                // Use ALL observations within date range for hotspots, not filtered by current view
-                const hotspotObservations = allObservations.filter(obs => {
-                    // Date range filter
-                    if (startDate || endDate) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (startDate && obsDate < new Date(startDate)) return false;
-                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
-                    }
-
-                    // Month/Year filter
-                    if (selectedMonth || selectedYear) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
-                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
-                    }
-
+                // Use the same filtered observations as the actual mode
+                const hotspotObservations = filteredObservations.filter(obs => {
                     return obs.latitude && obs.longitude;
                 });
 
@@ -1435,15 +1425,14 @@
                         hideSpeciesLegend();
                     }
 
-                    // Water monitoring markers are always shown
-                    showWaterMonitoringMarkers();
-
-                    // For water monitoring mode, don't clear sightings - let them show alongside water markers
-                    if (currentView !== 'water-monitoring') {
-                        clearSightingsMarkers();
-                    } else {
-                        // In water monitoring mode, make sure sightings are visible
+                    // Show water monitoring markers only when water monitoring view is selected
+                    if (currentView === 'water-monitoring') {
+                        showWaterMonitoringMarkers();
+                        // In water monitoring mode, don't clear sightings - let them show alongside water markers
                         applyFilters();
+                    } else {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
                     }
 
                     // Reapply filters
