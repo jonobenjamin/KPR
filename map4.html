@@ -1092,6 +1092,7 @@
         }
 
         function applyFilters() {
+            console.log('applyFilters called with displayMode:', displayMode, 'currentView:', currentView);
             // Clear all markers and hotspot layers first
             observationsLayer.clearLayers();
             hotspotLayer.clearLayers();
@@ -1165,16 +1166,21 @@
             });
 
             if (displayMode === 'hotspot') {
+                console.log('Creating hotspot for view:', currentView);
                 // Create heat map using Leaflet.heat plugin
                 // Use the same filtered observations as the actual mode
                 const hotspotObservations = filteredObservations.filter(obs => {
                     return obs.latitude && obs.longitude;
                 });
 
+                console.log('filteredObservations length:', filteredObservations.length);
+                console.log('hotspotObservations length:', hotspotObservations.length);
+
                 const points = hotspotObservations
                     .map(obs => [obs.latitude, obs.longitude, 1]); // [lat, lng, intensity]
 
                 console.log('Hotspot mode: showing', points.length, 'points from filtered observations');
+                console.log('Sample points:', points.slice(0, 3));
 
                 if (points.length > 0) {
                     const heatLayer = L.heatLayer(points, {
@@ -1633,6 +1639,15 @@
                     // Water monitoring group stays visible to allow switching back
                     document.getElementById('water-monitoring-group').style.display = 'block';
 
+                    // Sync display mode toggles with current state
+                    if (currentView === 'sightings') {
+                        // For sightings, use the global displayMode
+                        const toggle = document.getElementById('display-mode-toggle');
+                        if (toggle) toggle.checked = (displayMode === 'hotspot');
+                        const switchText = document.querySelector('#species-group .switch-text');
+                        if (switchText) switchText.textContent = (displayMode === 'hotspot') ? 'Hotspots' : 'Actual';
+                    }
+
                     // Show/hide date controls for water monitoring
                     const allControlGroups = document.querySelectorAll('.control-group');
 
@@ -1682,10 +1697,11 @@
             // Display mode switch (Hotspots/Actual)
             document.getElementById('display-mode-toggle').addEventListener('change', function() {
                 displayMode = this.checked ? 'hotspot' : 'actual';
+                console.log('Display mode changed to:', displayMode, 'for view:', currentView);
 
                 // Update switch text
                 const switchText = this.parentElement.querySelector('.switch-text');
-                switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
+                if (switchText) switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
 
                 // Show/hide species legend for actual locations mode
                 if (displayMode === 'actual' && currentView === 'sightings') {
@@ -1699,8 +1715,8 @@
                 // Handle display mode changes based on current view
                 if (currentView === 'trees') {
                     displayTrees(); // Update trees display mode
-                } else {
-                    applyFilters(); // Update other views (sightings, etc.)
+                } else if (currentView === 'sightings' || currentView === 'maintenance' || currentView === 'incidents' || currentView === 'water-monitoring') {
+                    applyFilters(); // Update other views
                 }
             });
 
