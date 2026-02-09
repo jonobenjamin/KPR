@@ -453,6 +453,112 @@ input:checked + .slider:before {
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
+/* Table View Styles */
+.table-view {
+    position: absolute;
+    top: 80px; /* Below top ribbon */
+    left: 0;
+    right: 0;
+    bottom: 50px; /* Above bottom ribbon */
+    background: #f8f9fa;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.table-view h2 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.table-controls {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.date-filters {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.submissions-table-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow-x: auto;
+}
+
+.submissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.submissions-table th {
+    background: #3498db;
+    color: white;
+    padding: 15px 12px;
+    text-align: left;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    position: relative;
+}
+
+.submissions-table th:hover {
+    background: #2980b9;
+}
+
+.submissions-table th[data-sort] {
+    user-select: none;
+}
+
+.sort-indicator {
+    margin-left: 5px;
+    font-size: 12px;
+}
+
+.submissions-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    color: #495057;
+}
+
+.submissions-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.submissions-table tbody tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.submissions-table tbody tr:nth-child(even):hover {
+    background: #e9ecef;
+}
+
+/* Responsive table */
+@media (max-width: 768px) {
+    .submissions-table {
+        font-size: 12px;
+    }
+
+    .submissions-table th,
+    .submissions-table td {
+        padding: 8px 6px;
+    }
+
+    .date-filters {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
+
 /* Species Legend Styles */
 .species-legend {
     background: white;
