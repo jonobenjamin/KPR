@@ -50,6 +50,7 @@
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
                     <option value="water-monitoring">Water Monitoring</option>
+                    <option value="user-submissions">User Submissions</option>
                 </select>
             </div>
 
@@ -289,6 +290,92 @@
         </div>
     </div>
 
+    <!-- User Submissions Table View -->
+    <div id="table-view" class="table-view" style="display: none;">
+        <div class="table-container">
+            <h2>User Submissions Summary</h2>
+            <div class="table-controls">
+                <div class="date-filters">
+                    <div class="control-group">
+                        <h4>Date Range</h4>
+                        <div class="date-controls">
+                            <div class="date-control">
+                                <label for="table-start-date">Start Date</label>
+                                <input type="date" id="table-start-date">
+                            </div>
+                            <div class="date-control">
+                                <label for="table-end-date">End Date</label>
+                                <input type="date" id="table-end-date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>Month & Year</h4>
+                        <div class="date-controls">
+                            <div class="date-control">
+                                <label for="table-month-select">Month</label>
+                                <select id="table-month-select">
+                                    <option value="">All Months</option>
+                                    <option value="01">January</option>
+                                    <option value="02">February</option>
+                                    <option value="03">March</option>
+                                    <option value="04">April</option>
+                                    <option value="05">May</option>
+                                    <option value="06">June</option>
+                                    <option value="07">July</option>
+                                    <option value="08">August</option>
+                                    <option value="09">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
+                            </div>
+                            <div class="date-control">
+                                <label for="table-year-select">Year</label>
+                                <select id="table-year-select">
+                                    <option value="" selected>All Years</option>
+                                    <option value="2020">2020</option>
+                                    <option value="2021">2021</option>
+                                    <option value="2022">2022</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026">2026</option>
+                                    <option value="2027">2027</option>
+                                    <option value="2028">2028</option>
+                                    <option value="2029">2029</option>
+                                    <option value="2030">2030</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="submissions-table-container">
+                <table id="submissions-table" class="submissions-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="user">User <span class="sort-indicator"></span></th>
+                            <th data-sort="sightings">No. Sightings <span class="sort-indicator"></span></th>
+                            <th data-sort="maintenance">No. Maintenance <span class="sort-indicator"></span></th>
+                            <th data-sort="incidents">No. Incidents <span class="sort-indicator"></span></th>
+                            <th data-sort="total">Total Submissions <span class="sort-indicator">↓</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="submissions-tbody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px;">
+                                <span class="loading"></span> Loading user data...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Bottom Ribbon -->
     <div class="bottom-ribbon">
         <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
@@ -372,6 +459,10 @@
 
         // Tree data
         let allTrees = [];
+
+        // User submissions table sorting
+        let currentSortColumn = 'total';
+        let currentSortDirection = 'desc';
 
         // Current view state
         let currentView = 'sightings';
@@ -1560,6 +1651,97 @@
             }
         }
 
+        // Load and display user submissions data
+        async function loadUserSubmissions() {
+            try {
+                console.log('Loading user submissions data...');
+
+                // Get date filters
+                const startDate = document.getElementById('table-start-date').value;
+                const endDate = document.getElementById('table-end-date').value;
+                const selectedMonth = document.getElementById('table-month-select').value;
+                const selectedYear = document.getElementById('table-year-select').value;
+
+                // Filter observations by date
+                const filteredObservations = allObservations.filter(obs => {
+                    // Date range filter
+                    if (startDate || endDate) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (startDate && obsDate < new Date(startDate)) return false;
+                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
+                    }
+
+                    // Month/Year filter
+                    if (selectedMonth || selectedYear) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
+                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
+                    }
+
+                    return true;
+                });
+
+                // Aggregate data by user
+                const userStats = {};
+
+                filteredObservations.forEach(obs => {
+                    const user = obs.user || 'Anonymous';
+                    if (!userStats[user]) {
+                        userStats[user] = {
+                            user: user,
+                            sightings: 0,
+                            maintenance: 0,
+                            incidents: 0,
+                            total: 0
+                        };
+                    }
+
+                    // Count by category
+                    if (obs.category === 'Sighting') {
+                        userStats[user].sightings++;
+                    } else if (obs.category === 'Maintenance') {
+                        userStats[user].maintenance++;
+                    } else if (obs.category === 'Incident') {
+                        userStats[user].incidents++;
+                    }
+
+                    userStats[user].total++;
+                });
+
+                // Convert to array and sort by current sort settings
+                const userArray = Object.values(userStats);
+                const sortedArray = sortUserData(userArray, currentSortColumn, currentSortDirection);
+
+                // Display the data
+                displayUserSubmissions(sortedArray);
+
+            } catch (error) {
+                console.error('Error loading user submissions:', error);
+                const tbody = document.getElementById('submissions-tbody');
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Error loading data</td></tr>';
+            }
+        }
+
+        // Display user submissions in table
+        function displayUserSubmissions(userData) {
+            const tbody = document.getElementById('submissions-tbody');
+
+            if (userData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No submissions found for the selected date range</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = userData.map(user => `
+                <tr>
+                    <td>${user.user}</td>
+                    <td>${user.sightings}</td>
+                    <td>${user.maintenance}</td>
+                    <td>${user.incidents}</td>
+                    <td><strong>${user.total}</strong></td>
+                </tr>
+            `).join('');
+        }
+
         // Submit water monitoring data
         async function submitWaterMonitoringData() {
             const locationSelect = document.getElementById('water-location-select');
@@ -1652,6 +1834,19 @@
                     // Water monitoring group stays visible to allow switching back
                     document.getElementById('water-monitoring-group').style.display = 'block';
 
+                    // Show/hide map vs table view
+                    const mapView = document.getElementById('main-content');
+                    const tableView = document.getElementById('table-view');
+
+                    if (currentView === 'user-submissions') {
+                        mapView.style.display = 'none';
+                        tableView.style.display = 'block';
+                        loadUserSubmissions();
+                    } else {
+                        mapView.style.display = 'flex';
+                        tableView.style.display = 'none';
+                    }
+
                     // Sync display mode toggles with current state
                     if (currentView === 'sightings') {
                         // For sightings, use the global displayMode
@@ -1664,8 +1859,8 @@
                     // Show/hide date controls for water monitoring
                     const allControlGroups = document.querySelectorAll('.control-group');
 
-                    if (currentView === 'water-monitoring' || currentView === 'trees') {
-                        // Hide date range (index 1) and month/year (index 2) controls for water monitoring and trees
+                    if (currentView === 'water-monitoring' || currentView === 'trees' || currentView === 'user-submissions') {
+                        // Hide date range (index 1) and month/year (index 2) controls for water monitoring, trees, and user submissions
                         allControlGroups[1].style.display = 'none'; // Date Range
                         allControlGroups[2].style.display = 'none'; // Month & Year
                     } else {
@@ -1696,6 +1891,14 @@
                         clearSightingsMarkers();
                         displayTrees();
                         // Don't call applyFilters() for trees - trees have their own display logic
+                    } else if (currentView === 'user-submissions') {
+                        // Clear all map layers for table view
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        treesLayer.clearLayers();
+                        hotspotLayer.clearLayers();
+                        observationsLayer.clearLayers();
+                        // Don't call applyFilters() for user submissions - it has its own data loading
                     } else {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
@@ -1769,6 +1972,83 @@
 
             // Water monitoring submit button
             document.getElementById('submit-water-data').addEventListener('click', submitWaterMonitoringData);
+
+            // Table sorting functionality
+            document.querySelectorAll('#submissions-table th[data-sort]').forEach(header => {
+                header.addEventListener('click', function() {
+                    const sortBy = this.dataset.sort;
+                    sortUserTable(sortBy);
+                });
+            });
+
+            // Table date filters
+            ['table-start-date', 'table-end-date', 'table-month-select', 'table-year-select'].forEach(id => {
+                document.getElementById(id).addEventListener('change', loadUserSubmissions);
+            });
+        }
+
+        // Sort user data array
+        function sortUserData(userArray, sortBy, sortDirection) {
+            return userArray.sort((a, b) => {
+                let aVal, bVal;
+
+                switch (sortBy) {
+                    case 'user':
+                        aVal = a.user;
+                        bVal = b.user;
+                        break;
+                    case 'sightings':
+                        aVal = a.sightings;
+                        bVal = b.sightings;
+                        break;
+                    case 'maintenance':
+                        aVal = a.maintenance;
+                        bVal = b.maintenance;
+                        break;
+                    case 'incidents':
+                        aVal = a.incidents;
+                        bVal = b.incidents;
+                        break;
+                    case 'total':
+                    default:
+                        aVal = a.total;
+                        bVal = b.total;
+                        break;
+                }
+
+                let comparison = 0;
+                if (sortBy === 'user') {
+                    comparison = aVal.localeCompare(bVal);
+                } else {
+                    comparison = aVal - bVal;
+                }
+
+                return sortDirection === 'asc' ? comparison : -comparison;
+            });
+        }
+
+        // Sort user submissions table
+        function sortUserTable(sortBy) {
+            // Update current sort state
+            if (currentSortColumn === sortBy) {
+                // Toggle direction if same column
+                currentSortDirection = currentSortDirection === 'desc' ? 'asc' : 'desc';
+            } else {
+                // New column, default to descending
+                currentSortColumn = sortBy;
+                currentSortDirection = 'desc';
+            }
+
+            // Update sort indicators
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.textContent = '';
+            });
+
+            const currentIndicator = document.querySelector(`th[data-sort="${sortBy}"] .sort-indicator`);
+            currentIndicator.textContent = currentSortDirection === 'desc' ? '↓' : '↑';
+
+            // Reload data with new sorting
+            loadUserSubmissions();
         }
 
         // Start the map
