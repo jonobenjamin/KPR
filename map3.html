@@ -605,6 +605,10 @@
                         lng: obs.longitude
                     })));
 
+                    // Log unique animal names for debugging
+                    const uniqueAnimals = [...new Set(data.data.filter(obs => obs.category === 'Sighting').map(obs => obs.animal).filter(Boolean))];
+                    console.log('Unique animal names in data:', uniqueAnimals);
+
 
                     data.data.forEach(observation => {
                         if (observation.latitude && observation.longitude) {
@@ -983,6 +987,12 @@
             observationsLayer.clearLayers();
             clearLatestMarkers();
 
+            // Debug species filtering
+            if (currentView === 'sightings') {
+                const selectedSpecies = document.getElementById('species-select').value;
+                console.log('Species filter:', selectedSpecies);
+            }
+
             // Apply date filters
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
@@ -1013,7 +1023,32 @@
                 // Species filter (sightings only)
                 if (currentView === 'sightings') {
                     const selectedSpecies = document.getElementById('species-select').value;
-                    if (selectedSpecies && obs.animal !== selectedSpecies) return false;
+                    if (selectedSpecies) {
+                        // Case-insensitive comparison
+                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
+                        const filterSpecies = selectedSpecies.toLowerCase().trim();
+
+                        // Handle different formats (spaces vs hyphens)
+                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
+                        const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
+
+                        // Debug logging (only for first few to avoid spam)
+                        if (obs.category === 'Sighting' && Math.random() < 0.1) {
+                            console.log('Species filter debug:', {
+                                original: obs.animal,
+                                normalized: obsAnimal,
+                                filter: filterSpecies,
+                                matches: obsAnimal.includes(filterSpecies) || obsAnimal === filterSpecies
+                            });
+                        }
+
+                        // Check for match
+                        if (!obsAnimal.includes(filterSpecies) &&
+                            !obsAnimalNormalized.includes(filterNormalized) &&
+                            obsAnimal !== filterSpecies) {
+                            return false;
+                        }
+                    }
                 }
 
                 return true;
@@ -1384,13 +1419,13 @@
                     const allControlGroups = document.querySelectorAll('.control-group');
 
                     if (currentView === 'water-monitoring') {
-                        // Hide date range and month/year controls (first two groups)
-                        allControlGroups[0].style.display = 'none'; // Date Range
-                        allControlGroups[1].style.display = 'none'; // Month & Year
+                        // Hide date range (index 1) and month/year (index 2) controls, but keep view mode (index 0) visible
+                        allControlGroups[1].style.display = 'none'; // Date Range
+                        allControlGroups[2].style.display = 'none'; // Month & Year
                     } else {
                         // Show date controls for other views
-                        allControlGroups[0].style.display = 'block'; // Date Range
-                        allControlGroups[1].style.display = 'block'; // Month & Year
+                        allControlGroups[1].style.display = 'block'; // Date Range
+                        allControlGroups[2].style.display = 'block'; // Month & Year
                     }
 
                     // Show/hide species legend for actual locations mode
