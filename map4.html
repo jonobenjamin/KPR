@@ -1655,6 +1655,7 @@
         async function loadUserSubmissions() {
             try {
                 console.log('Loading user submissions data...');
+                console.log('allObservations length:', allObservations.length);
 
                 // Get date filters
                 const startDate = document.getElementById('table-start-date').value;
@@ -1681,10 +1682,13 @@
                     return true;
                 });
 
+                console.log('filteredObservations for user submissions:', filteredObservations.length);
+
                 // Aggregate data by user
                 const userStats = {};
 
                 filteredObservations.forEach(obs => {
+                    console.log('Processing observation:', obs.category, 'user:', obs.user);
                     const user = obs.user || 'Anonymous';
                     if (!userStats[user]) {
                         userStats[user] = {
@@ -1724,7 +1728,14 @@
 
         // Display user submissions in table
         function displayUserSubmissions(userData) {
+            console.log('Displaying user submissions data:', userData.length, 'users');
             const tbody = document.getElementById('submissions-tbody');
+            console.log('tbody element found:', !!tbody);
+
+            if (!tbody) {
+                console.error('submissions-tbody element not found!');
+                return;
+            }
 
             if (userData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No submissions found for the selected date range</td></tr>';
@@ -1740,6 +1751,7 @@
                     <td><strong>${user.total}</strong></td>
                 </tr>
             `).join('');
+            console.log('Table HTML updated with', userData.length, 'rows');
         }
 
         // Submit water monitoring data
@@ -1838,13 +1850,22 @@
                     const mapView = document.getElementById('main-content');
                     const tableView = document.getElementById('table-view');
 
+                    console.log('mapView found:', !!mapView, 'tableView found:', !!tableView);
+                    console.log('currentView:', currentView);
+
                     if (currentView === 'user-submissions') {
-                        mapView.style.display = 'none';
-                        tableView.style.display = 'block';
+                        console.log('Switching to user submissions table view');
+                        if (mapView) mapView.style.display = 'none';
+                        if (tableView) {
+                            tableView.style.display = 'block';
+                            console.log('Table view display set to block');
+                        }
+                        alert('User Submissions view activated!');
                         loadUserSubmissions();
                     } else {
-                        mapView.style.display = 'flex';
-                        tableView.style.display = 'none';
+                        console.log('Switching to map view:', currentView);
+                        if (mapView) mapView.style.display = 'flex';
+                        if (tableView) tableView.style.display = 'none';
                     }
 
                     // Sync display mode toggles with current state
