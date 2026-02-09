@@ -1832,6 +1832,7 @@
         function setupFilters() {
             // View mode dropdown
             document.getElementById('view-mode-select').addEventListener('change', function() {
+                console.log('View mode dropdown changed to:', this.value);
                 currentView = this.value;
 
                     // Show/hide appropriate controls
@@ -1855,17 +1856,26 @@
 
                     if (currentView === 'user-submissions') {
                         console.log('Switching to user submissions table view');
-                        if (mapView) mapView.style.display = 'none';
+                        if (mapView) {
+                            mapView.classList.add('hidden');
+                            console.log('Map view hidden with class');
+                        }
                         if (tableView) {
-                            tableView.style.display = 'block';
-                            console.log('Table view display set to block');
+                            tableView.classList.add('visible');
+                            console.log('Table view shown with class');
                         }
                         alert('User Submissions view activated!');
                         loadUserSubmissions();
                     } else {
                         console.log('Switching to map view:', currentView);
-                        if (mapView) mapView.style.display = 'flex';
-                        if (tableView) tableView.style.display = 'none';
+                        if (mapView) {
+                            mapView.classList.remove('hidden');
+                            console.log('Map view shown by removing class');
+                        }
+                        if (tableView) {
+                            tableView.classList.remove('visible');
+                            console.log('Table view hidden by removing class');
+                        }
                     }
 
                     // Sync display mode toggles with current state
