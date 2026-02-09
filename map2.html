@@ -8,114 +8,9 @@
     <!-- External CSS -->
     <link rel="stylesheet" href="styles.css" />
 
-    <!-- Additional styles for water monitoring -->
-    <style>
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 8px 12px;
-            border: 2px solid #e1e5e9;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: #3498db;
-        }
-
-        .btn-submit {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-            transition: background 0.2s;
-        }
-
-        .btn-submit:hover {
-            background: #229954;
-        }
-
-        .chart-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .chart-modal-content {
-            background: white;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 90%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chart-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            border-bottom: 1px solid #e1e5e9;
-        }
-
-        .chart-modal-header h3 {
-            margin: 0;
-            color: #2c3e50;
-        }
-
-        .chart-close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #7f8c8d;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .chart-close-btn:hover {
-            color: #34495e;
-        }
-
-        .chart-container {
-            padding: 20px;
-            flex: 1;
-            min-height: 400px;
-        }
-    </style>
-
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+
     <!-- Leaflet TextPath Plugin CSS -->
     <style>
         .leaflet-text-path {
@@ -370,7 +265,7 @@
 
     <!-- Leaflet Heat Plugin -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-    
+
     <!-- Leaflet TextPath Plugin -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet-textpath@1.2.3/leaflet.textpath.min.js"></script>
 
@@ -543,7 +438,7 @@
             roadLayers.forEach(({ layer, roadName }) => {
                 // Clear existing text
                 layer.setText(null);
-                
+
                 if (zoom >= minZoom) {
                     // Simply apply text - let it follow the natural path direction
                     layer.setText('  ' + roadName + '  ', {
@@ -570,18 +465,18 @@
         // Check if a coordinate array would create upside-down text
         function shouldReverseCoords(coords) {
             if (!coords || coords.length < 2) return false;
-            
+
             // Get start and end points
             const start = coords[0];
             const end = coords[coords.length - 1];
-            
+
             // Calculate the overall direction
             const dx = end[0] - start[0]; // longitude difference
             const dy = end[1] - start[1]; // latitude difference
-            
+
             // Calculate angle in degrees
             const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-            
+
             // Reverse if angle would make text upside-down
             // (pointing generally westward or southward: angle > 90 or < -90)
             return (angle > 90 || angle < -90);
@@ -640,7 +535,7 @@
 
                 // Set up zoom event listener for labels
                 map.on('zoomend', updateRoadLabels);
-                
+
                 // Initial label update
                 updateRoadLabels();
 
@@ -864,14 +759,6 @@
             waterMonitoringMarkers = [];
         }
 
-        // Clear sightings markers (for water monitoring mode)
-        function clearSightingsMarkers() {
-            // Clear all observation markers when in water monitoring mode
-            observationsLayer.clearLayers();
-            clearLatestMarkers();
-            hideSpeciesLegend();
-        }
-
         // Show water monitoring graph for a location
         window.showWaterMonitoringGraph = function(locationKey) {
             const location = waterMonitoringLocations[locationKey];
@@ -1045,78 +932,12 @@
             new Chart(document.getElementById('waterChart'), config);
         }
 
-        // Submit water monitoring data
-        async function submitWaterMonitoringData() {
-            const locationSelect = document.getElementById('water-location-select');
-            const locationKey = locationSelect.value;
-
-            if (!locationKey) {
-                alert('Please select a location');
-                return;
-            }
-
-            const location = waterMonitoringLocations[locationKey];
-            if (!location) {
-                alert('Invalid location selected');
-                return;
-            }
-
-            // Collect form data
-            const waterData = {
-                location: locationKey,
-                location_name: location.name,
-                latitude: location.coords[0],
-                longitude: location.coords[1],
-                date: document.getElementById('water-date-input').value,
-                cond: parseFloat(document.getElementById('cond-input').value) || null,
-                tds: parseFloat(document.getElementById('tds-input').value) || null,
-                as: parseFloat(document.getElementById('as-input').value) || null,
-                cr: parseFloat(document.getElementById('cr-input').value) || null,
-                cu: parseFloat(document.getElementById('cu-input').value) || null,
-                mn: parseFloat(document.getElementById('mn-input').value) || null,
-                na: parseFloat(document.getElementById('na-input').value) || null,
-                pb: parseFloat(document.getElementById('pb-input').value) || null
-            };
-
-            // Validate required fields
-            if (!waterData.date) {
-                alert('Please select a date');
-                return;
-            }
-
-            // Check if at least one parameter is provided
-            const hasData = [waterData.cond, waterData.tds, waterData.as, waterData.cr,
-                           waterData.cu, waterData.mn, waterData.na, waterData.pb].some(val => val !== null);
-            if (!hasData) {
-                alert('Please enter at least one water quality parameter');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/water-monitoring`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(waterData)
-                });
-
-                if (!response.ok) throw new Error(`Failed to submit water monitoring data`);
-
-                const result = await response.json();
-                if (result.success) {
-                    alert('Water monitoring data submitted successfully!');
-
-                    // Clear form
-                    document.getElementById('water-date-input').value = '';
-                    ['cond-input', 'tds-input', 'as-input', 'cr-input', 'cu-input', 'mn-input', 'na-input', 'pb-input'].forEach(id => {
-                        document.getElementById(id).value = '';
-                    });
-                } else {
-                    throw new Error(result.message || 'Failed to submit data');
-                }
-            } catch (error) {
-                console.error('Error submitting water monitoring data:', error);
-                alert('Failed to submit water monitoring data: ' + error.message);
-            }
+        // Clear sightings markers (for water monitoring mode)
+        function clearSightingsMarkers() {
+            // Clear all observation markers when in water monitoring mode
+            observationsLayer.clearLayers();
+            clearLatestMarkers();
+            hideSpeciesLegend();
         }
 
         function applyFilters() {
@@ -1428,6 +1249,80 @@
                 document.getElementById('maintenance-records').textContent = filteredCount;
             } else if (currentView === 'incidents') {
                 document.getElementById('incident-records').textContent = filteredCount;
+            }
+        }
+
+        // Submit water monitoring data
+        async function submitWaterMonitoringData() {
+            const locationSelect = document.getElementById('water-location-select');
+            const locationKey = locationSelect.value;
+
+            if (!locationKey) {
+                alert('Please select a location');
+                return;
+            }
+
+            const location = waterMonitoringLocations[locationKey];
+            if (!location) {
+                alert('Invalid location selected');
+                return;
+            }
+
+            // Collect form data
+            const waterData = {
+                location: locationKey,
+                location_name: location.name,
+                latitude: location.coords[0],
+                longitude: location.coords[1],
+                date: document.getElementById('water-date-input').value,
+                cond: parseFloat(document.getElementById('cond-input').value) || null,
+                tds: parseFloat(document.getElementById('tds-input').value) || null,
+                as: parseFloat(document.getElementById('as-input').value) || null,
+                cr: parseFloat(document.getElementById('cr-input').value) || null,
+                cu: parseFloat(document.getElementById('cu-input').value) || null,
+                mn: parseFloat(document.getElementById('mn-input').value) || null,
+                na: parseFloat(document.getElementById('na-input').value) || null,
+                pb: parseFloat(document.getElementById('pb-input').value) || null
+            };
+
+            // Validate required fields
+            if (!waterData.date) {
+                alert('Please select a date');
+                return;
+            }
+
+            // Check if at least one parameter is provided
+            const hasData = [waterData.cond, waterData.tds, waterData.as, waterData.cr,
+                           waterData.cu, waterData.mn, waterData.na, waterData.pb].some(val => val !== null);
+            if (!hasData) {
+                alert('Please enter at least one water quality parameter');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/water-monitoring`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(waterData)
+                });
+
+                if (!response.ok) throw new Error(`Failed to submit water monitoring data`);
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('Water monitoring data submitted successfully!');
+
+                    // Clear form
+                    document.getElementById('water-date-input').value = '';
+                    ['cond-input', 'tds-input', 'as-input', 'cr-input', 'cu-input', 'mn-input', 'na-input', 'pb-input'].forEach(id => {
+                        document.getElementById(id).value = '';
+                    });
+                } else {
+                    throw new Error(result.message || 'Failed to submit data');
+                }
+            } catch (error) {
+                console.error('Error submitting water monitoring data:', error);
+                alert('Failed to submit water monitoring data: ' + error.message);
             }
         }
 
