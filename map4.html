@@ -55,6 +55,29 @@
                     <option value="water-monitoring">Water Monitoring</option>
                     <option value="user-submissions">User Submissions</option>
                 </select>
+                <!-- Backup option in case the above doesn't render -->
+                <script>
+                    // Ensure the option exists
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const select = document.getElementById('view-mode-select');
+                        if (select) {
+                            let hasUserSubmissions = false;
+                            for (let option of select.options) {
+                                if (option.value === 'user-submissions') {
+                                    hasUserSubmissions = true;
+                                    break;
+                                }
+                            }
+                            if (!hasUserSubmissions) {
+                                const option = document.createElement('option');
+                                option.value = 'user-submissions';
+                                option.text = 'User Submissions';
+                                select.appendChild(option);
+                                console.log('Added user-submissions option via DOM manipulation');
+                            }
+                        }
+                    });
+                </script>
             </div>
 
             <!-- Date Range Controls -->
@@ -1836,7 +1859,25 @@
             // View mode dropdown
             const viewModeSelect = document.getElementById('view-mode-select');
             console.log('View mode select element found:', !!viewModeSelect);
+
+            // Ensure user-submissions option exists
             if (viewModeSelect) {
+                let userSubmissionsOption = null;
+                for (let option of viewModeSelect.options) {
+                    if (option.value === 'user-submissions') {
+                        userSubmissionsOption = option;
+                        break;
+                    }
+                }
+
+                if (!userSubmissionsOption) {
+                    console.log('Adding user-submissions option dynamically');
+                    userSubmissionsOption = document.createElement('option');
+                    userSubmissionsOption.value = 'user-submissions';
+                    userSubmissionsOption.text = 'User Submissions';
+                    viewModeSelect.appendChild(userSubmissionsOption);
+                }
+
                 console.log('View mode options:', viewModeSelect.options.length);
                 for (let i = 0; i < viewModeSelect.options.length; i++) {
                     console.log('Option', i, ':', viewModeSelect.options[i].value, '-', viewModeSelect.options[i].text);
@@ -2032,9 +2073,19 @@
 
             // Test button for user submissions
             document.getElementById('test-user-submissions').addEventListener('click', function() {
-                console.log('Test button clicked - manually triggering user submissions view');
+                console.log('Test button clicked - checking dropdown options');
                 const viewModeSelect = document.getElementById('view-mode-select');
+
+                // List all options
+                let optionsText = 'Available options:\n';
+                for (let i = 0; i < viewModeSelect.options.length; i++) {
+                    optionsText += `${i}: ${viewModeSelect.options[i].value} - ${viewModeSelect.options[i].text}\n`;
+                }
+                alert(optionsText);
+
+                console.log('Setting dropdown to user-submissions');
                 viewModeSelect.value = 'user-submissions';
+
                 // Manually trigger the change event
                 const event = new Event('change');
                 viewModeSelect.dispatchEvent(event);
