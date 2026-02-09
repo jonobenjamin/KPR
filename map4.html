@@ -22,9 +22,12 @@
     <!-- Top Ribbon -->
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
-        <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
-            Submit Data
-        </a>
+        <div style="display: flex; gap: 10px;">
+            <button id="test-user-submissions" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">TEST User Submissions</button>
+            <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
+                Submit Data
+            </a>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -1831,8 +1834,18 @@
         // Set up all event listeners
         function setupFilters() {
             // View mode dropdown
-            document.getElementById('view-mode-select').addEventListener('change', function() {
-                console.log('View mode dropdown changed to:', this.value);
+            const viewModeSelect = document.getElementById('view-mode-select');
+            console.log('View mode select element found:', !!viewModeSelect);
+            if (viewModeSelect) {
+                console.log('View mode options:', viewModeSelect.options.length);
+                for (let i = 0; i < viewModeSelect.options.length; i++) {
+                    console.log('Option', i, ':', viewModeSelect.options[i].value, '-', viewModeSelect.options[i].text);
+                }
+            }
+
+            viewModeSelect.addEventListener('change', function() {
+                console.log('View mode dropdown CHANGED to:', this.value);
+                alert('View mode changed to: ' + this.value);
                 currentView = this.value;
 
                     // Show/hide appropriate controls
@@ -2015,6 +2028,16 @@
             // Table date filters
             ['table-start-date', 'table-end-date', 'table-month-select', 'table-year-select'].forEach(id => {
                 document.getElementById(id).addEventListener('change', loadUserSubmissions);
+            });
+
+            // Test button for user submissions
+            document.getElementById('test-user-submissions').addEventListener('click', function() {
+                console.log('Test button clicked - manually triggering user submissions view');
+                const viewModeSelect = document.getElementById('view-mode-select');
+                viewModeSelect.value = 'user-submissions';
+                // Manually trigger the change event
+                const event = new Event('change');
+                viewModeSelect.dispatchEvent(event);
             });
         }
 
