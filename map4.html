@@ -22,12 +22,9 @@
     <!-- Top Ribbon -->
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
-        <div style="display: flex; gap: 10px;">
-            <button id="test-user-submissions" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">TEST User Submissions</button>
-            <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
-                Submit Data
-            </a>
-        </div>
+        <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
+            Submit Data
+        </a>
     </div>
 
     <!-- Main Content -->
@@ -55,29 +52,6 @@
                     <option value="water-monitoring">Water Monitoring</option>
                     <option value="user-submissions">User Submissions</option>
                 </select>
-                <!-- Backup option in case the above doesn't render -->
-                <script>
-                    // Ensure the option exists
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const select = document.getElementById('view-mode-select');
-                        if (select) {
-                            let hasUserSubmissions = false;
-                            for (let option of select.options) {
-                                if (option.value === 'user-submissions') {
-                                    hasUserSubmissions = true;
-                                    break;
-                                }
-                            }
-                            if (!hasUserSubmissions) {
-                                const option = document.createElement('option');
-                                option.value = 'user-submissions';
-                                option.text = 'User Submissions';
-                                select.appendChild(option);
-                                console.log('Added user-submissions option via DOM manipulation');
-                            }
-                        }
-                    });
-                </script>
             </div>
 
             <!-- Date Range Controls -->
@@ -1209,7 +1183,6 @@
         }
 
         function applyFilters() {
-            console.log('applyFilters called with displayMode:', displayMode, 'currentView:', currentView);
             // Clear all markers and hotspot layers first
             observationsLayer.clearLayers();
             hotspotLayer.clearLayers();
@@ -1283,21 +1256,14 @@
             });
 
             if (displayMode === 'hotspot') {
-                console.log('Creating hotspot for view:', currentView);
                 // Create heat map using Leaflet.heat plugin
                 // Use the same filtered observations as the actual mode
                 const hotspotObservations = filteredObservations.filter(obs => {
                     return obs.latitude && obs.longitude;
                 });
 
-                console.log('filteredObservations length:', filteredObservations.length);
-                console.log('hotspotObservations length:', hotspotObservations.length);
-
                 const points = hotspotObservations
                     .map(obs => [obs.latitude, obs.longitude, 1]); // [lat, lng, intensity]
-
-                console.log('Hotspot mode: showing', points.length, 'points from filtered observations');
-                console.log('Sample points:', points.slice(0, 3));
 
                 // If no real points, add some test points around the map center for debugging
                 if (points.length === 0) {
@@ -1326,8 +1292,6 @@
                             1.0: '#ff0000'   // bright red
                         }
                     }).addTo(hotspotLayer);
-
-                    console.log('Heat layer created and added to map');
                 }
             } else {
                 // Show individual markers (actual locations)
@@ -1680,8 +1644,6 @@
         // Load and display user submissions data
         async function loadUserSubmissions() {
             try {
-                console.log('Loading user submissions data...');
-                console.log('allObservations length:', allObservations.length);
 
                 // Get date filters
                 const startDate = document.getElementById('table-start-date').value;
@@ -1708,13 +1670,10 @@
                     return true;
                 });
 
-                console.log('filteredObservations for user submissions:', filteredObservations.length);
-
                 // Aggregate data by user
                 const userStats = {};
 
                 filteredObservations.forEach(obs => {
-                    console.log('Processing observation:', obs.category, 'user:', obs.user);
                     const user = obs.user || 'Anonymous';
                     if (!userStats[user]) {
                         userStats[user] = {
@@ -1754,14 +1713,7 @@
 
         // Display user submissions in table
         function displayUserSubmissions(userData) {
-            console.log('Displaying user submissions data:', userData.length, 'users');
             const tbody = document.getElementById('submissions-tbody');
-            console.log('tbody element found:', !!tbody);
-
-            if (!tbody) {
-                console.error('submissions-tbody element not found!');
-                return;
-            }
 
             if (userData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No submissions found for the selected date range</td></tr>';
@@ -1777,7 +1729,6 @@
                     <td><strong>${user.total}</strong></td>
                 </tr>
             `).join('');
-            console.log('Table HTML updated with', userData.length, 'rows');
         }
 
         // Submit water monitoring data
@@ -1858,35 +1809,21 @@
         function setupFilters() {
             // View mode dropdown
             const viewModeSelect = document.getElementById('view-mode-select');
-            console.log('View mode select element found:', !!viewModeSelect);
 
             // Ensure user-submissions option exists
             if (viewModeSelect) {
-                let userSubmissionsOption = null;
-                for (let option of viewModeSelect.options) {
-                    if (option.value === 'user-submissions') {
-                        userSubmissionsOption = option;
-                        break;
-                    }
-                }
+                // Remove any existing user-submissions options first
+                const existingOptions = viewModeSelect.querySelectorAll('option[value="user-submissions"]');
+                existingOptions.forEach(opt => opt.remove());
 
-                if (!userSubmissionsOption) {
-                    console.log('Adding user-submissions option dynamically');
-                    userSubmissionsOption = document.createElement('option');
-                    userSubmissionsOption.value = 'user-submissions';
-                    userSubmissionsOption.text = 'User Submissions';
-                    viewModeSelect.appendChild(userSubmissionsOption);
-                }
-
-                console.log('View mode options:', viewModeSelect.options.length);
-                for (let i = 0; i < viewModeSelect.options.length; i++) {
-                    console.log('Option', i, ':', viewModeSelect.options[i].value, '-', viewModeSelect.options[i].text);
-                }
+                // Add the option
+                const userSubmissionsOption = document.createElement('option');
+                userSubmissionsOption.value = 'user-submissions';
+                userSubmissionsOption.text = 'User Submissions';
+                viewModeSelect.appendChild(userSubmissionsOption);
             }
 
             viewModeSelect.addEventListener('change', function() {
-                console.log('View mode dropdown CHANGED to:', this.value);
-                alert('View mode changed to: ' + this.value);
                 currentView = this.value;
 
                     // Show/hide appropriate controls
@@ -1905,30 +1842,19 @@
                     const mapView = document.getElementById('main-content');
                     const tableView = document.getElementById('table-view');
 
-                    console.log('mapView found:', !!mapView, 'tableView found:', !!tableView);
-                    console.log('currentView:', currentView);
-
                     if (currentView === 'user-submissions') {
-                        console.log('Switching to user submissions table view');
-                        if (mapView) {
-                            mapView.classList.add('hidden');
-                            console.log('Map view hidden with class');
-                        }
-                        if (tableView) {
-                            tableView.classList.add('visible');
-                            console.log('Table view shown with class');
-                        }
-                        alert('User Submissions view activated!');
+                        // Hide map, show table
+                        if (mapView) mapView.style.display = 'none';
+                        if (tableView) tableView.style.display = 'block';
                         loadUserSubmissions();
                     } else {
-                        console.log('Switching to map view:', currentView);
-                        if (mapView) {
-                            mapView.classList.remove('hidden');
-                            console.log('Map view shown by removing class');
-                        }
-                        if (tableView) {
-                            tableView.classList.remove('visible');
-                            console.log('Table view hidden by removing class');
+                        // Show map, hide table
+                        if (mapView) mapView.style.display = 'flex';
+                        if (tableView) tableView.style.display = 'none';
+
+                        // Reapply filters for the current view
+                        if (currentView === 'sightings' || currentView === 'maintenance' || currentView === 'incidents' || currentView === 'water-monitoring') {
+                            applyFilters();
                         }
                     }
 
@@ -2071,25 +1997,6 @@
                 document.getElementById(id).addEventListener('change', loadUserSubmissions);
             });
 
-            // Test button for user submissions
-            document.getElementById('test-user-submissions').addEventListener('click', function() {
-                console.log('Test button clicked - checking dropdown options');
-                const viewModeSelect = document.getElementById('view-mode-select');
-
-                // List all options
-                let optionsText = 'Available options:\n';
-                for (let i = 0; i < viewModeSelect.options.length; i++) {
-                    optionsText += `${i}: ${viewModeSelect.options[i].value} - ${viewModeSelect.options[i].text}\n`;
-                }
-                alert(optionsText);
-
-                console.log('Setting dropdown to user-submissions');
-                viewModeSelect.value = 'user-submissions';
-
-                // Manually trigger the change event
-                const event = new Event('change');
-                viewModeSelect.dispatchEvent(event);
-            });
         }
 
         // Sort user data array
