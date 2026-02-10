@@ -1216,18 +1216,10 @@
         }
 
         function applyFilters() {
-            console.log('applyFilters called for view:', currentView, 'with', allObservations.length, 'observations');
-
-            // Clear all markers and hotspot layers first
+            // Clear all markers first
             observationsLayer.clearLayers();
-            hotspotLayer.clearLayers();
             clearLatestMarkers();
 
-            // Debug species filtering
-            if (currentView === 'sightings') {
-                const selectedSpecies = document.getElementById('species-select').value;
-                console.log('Species filter:', selectedSpecies);
-            }
 
             // Apply date filters
             const startDate = document.getElementById('start-date').value;
@@ -1283,52 +1275,50 @@
 
             if (displayMode === 'hotspot') {
                 // Create heat map using Leaflet.heat plugin
-                // Use the same filtered observations as the actual mode
-                const hotspotObservations = filteredObservations.filter(obs => {
+                // Use ALL observations within date range for hotspots, not filtered by current view
+                const hotspotObservations = allObservations.filter(obs => {
+                    // Date range filter
+                    if (startDate || endDate) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (startDate && obsDate < new Date(startDate)) return false;
+                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
+                    }
+
+                    // Month/Year filter
+                    if (selectedMonth || selectedYear) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
+                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
+                    }
+
                     return obs.latitude && obs.longitude;
                 });
 
                 const points = hotspotObservations
                     .map(obs => [obs.latitude, obs.longitude, 1]); // [lat, lng, intensity]
 
-                // If no real points, add some test points around the map center for debugging
-                if (points.length === 0) {
-                    console.log('No real data points found, adding test points for debugging');
-                    const center = map.getCenter();
-                    points = [
-                        [center.lat + 0.01, center.lng + 0.01, 1],
-                        [center.lat - 0.01, center.lng - 0.01, 1],
-                        [center.lat + 0.005, center.lng - 0.005, 1]
-                    ];
-                }
-
                 if (points.length > 0) {
                     const heatLayer = L.heatLayer(points, {
-                        radius: 30,      // larger radius for visibility
-                        blur: 20,        // more blur for smoother appearance
+                        radius: 25,      // smaller, denser hotspots
+                        blur: 15,        // less blur for sharper hotspots
                         maxZoom: 17,
-                        minOpacity: 0.8, // more opaque
-                        max: 1.0,        // normalize intensity
+                        minOpacity: 0.6, // less transparent
                         // blue → green → yellow → red
                         gradient: {
-                            0.0: '#0000ff',  // bright blue
-                            0.25: '#00ff00', // bright green
-                            0.5: '#ffff00',  // bright yellow
-                            0.75: '#ff8000', // orange
-                            1.0: '#ff0000'   // bright red
+                            0.0: '#2c7bb6',
+                            0.25: '#00a6ca',
+                            0.45: '#00ccbc',
+                            0.6: '#90eb9d',
+                            0.75: '#ffff8c',
+                            0.9: '#f9d057',
+                            1.0: '#d7191c'
                         }
-                    }).addTo(hotspotLayer);
+                    }).addTo(observationsLayer);
                 }
             } else {
                 // Show individual markers (actual locations)
-                console.log('Showing actual markers for', filteredObservations.length, 'filtered observations');
-                let markersAdded = 0;
-                filteredObservations.forEach((observation, index) => {
+                filteredObservations.forEach(observation => {
                     if (observation.latitude && observation.longitude) {
-                        if (index < 3) { // Log first 3 markers
-                            console.log(`Creating marker ${index + 1} at [${observation.latitude}, ${observation.longitude}] for ${observation.category}`);
-                        }
-                        markersAdded++;
                         let icon, popupContent;
 
                         switch (observation.category) {
@@ -1374,46 +1364,7 @@
                             marker.addTo(observationsLayer);
                     }
                 });
-                console.log('Added', markersAdded, 'markers to observations layer');
-                console.log('Observations layer has', observationsLayer.getLayers().length, 'layers');
 
-                // Add a test marker to ensure markers work
-                if (markersAdded === 0) {
-                    console.log('No markers added, adding a test marker');
-                    const testMarker = L.marker([-19.1, 23.5], {
-                        icon: L.divIcon({
-                            className: 'test-marker',
-                            html: `<div style="background: red; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>`,
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    }).addTo(observationsLayer).bindPopup('Test Marker');
-                    console.log('Test marker added');
-                }
-
-                // Check if map is showing the markers
-                setTimeout(() => {
-                    console.log('Map bounds:', map.getBounds());
-                    const layerBounds = observationsLayer.getBounds();
-                    console.log('Observations layer bounds:', layerBounds);
-                    console.log('Map center:', map.getCenter());
-                    console.log('Map zoom:', map.getZoom());
-
-                    // If we have markers but they're not visible, try to fit bounds
-                    if ((markersAdded > 0 || observationsLayer.getLayers().length > 0) && layerBounds.isValid()) {
-                        console.log('Fitting map to show markers');
-                        console.log('Layer bounds:', layerBounds);
-                        map.fitBounds(layerBounds, { padding: [20, 20], maxZoom: 15 });
-                    } else if (markersAdded > 0) {
-                        console.log('Markers added but bounds invalid, trying to find first marker location');
-                        const firstMarker = observationsLayer.getLayers()[0];
-                        if (firstMarker && firstMarker.getLatLng) {
-                            const pos = firstMarker.getLatLng();
-                            console.log('Panning to first marker at:', pos);
-                            map.setView(pos, 12);
-                        }
-                    }
-                }, 500);
             }
 
             // Apply latest toggles
@@ -1426,26 +1377,21 @@
         }
 
         function applyLatestFilters() {
-            console.log('Applying latest filters');
             clearLatestMarkers();
 
             // Show black pins for recent observations by category
             if (document.getElementById('latest-sightings-toggle').checked) {
-                console.log('Showing black pins for recent sightings');
                 showLatestSightings();
             }
 
             if (document.getElementById('latest-maintenance-toggle').checked) {
-                console.log('Showing black pins for recent maintenance');
                 showLatestMaintenance();
             }
 
             if (document.getElementById('latest-incidents-toggle').checked) {
-                console.log('Showing black pins for recent incidents');
                 showLatestIncidents();
             }
 
-            console.log('Latest markers created:', latestMarkers.length);
         }
 
         // Display trees based on current filters
@@ -1927,30 +1873,22 @@
                     const tableView = document.getElementById('table-view');
 
                     if (currentView === 'user-submissions') {
-                        // Completely hide map container, show table in its place
-                        if (mapView) {
-                            mapView.classList.add('hidden');
-                        }
-                        if (tableView) {
-                            tableView.classList.add('visible');
-                        }
+                        // Hide map, show table
+                        document.getElementById('main-content').style.display = 'none';
+                        document.getElementById('table-view').style.display = 'block';
                         // Sync table dropdown
-                        if (viewModeSelectTable) viewModeSelectTable.value = currentView;
+                        if (document.getElementById('view-mode-select-table')) {
+                            document.getElementById('view-mode-select-table').value = currentView;
+                        }
                         loadUserSubmissions();
                     } else {
-                        // Show map container, hide table
-                        if (mapView) {
-                            mapView.classList.remove('hidden');
-                            // Ensure map is properly sized after being hidden
-                            setTimeout(() => {
-                                map.invalidateSize();
-                            }, 100);
-                        }
-                        if (tableView) {
-                            tableView.classList.remove('visible');
-                        }
+                        // Show map, hide table
+                        document.getElementById('main-content').style.display = 'flex';
+                        document.getElementById('table-view').style.display = 'none';
                         // Sync map dropdown
-                        if (viewModeSelect) viewModeSelect.value = currentView;
+                        if (document.getElementById('view-mode-select')) {
+                            document.getElementById('view-mode-select').value = currentView;
+                        }
 
                         // Reapply filters for the current view
                         if (currentView === 'sightings' || currentView === 'maintenance' || currentView === 'incidents' || currentView === 'water-monitoring') {
