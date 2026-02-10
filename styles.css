@@ -464,6 +464,7 @@ input:checked + .slider:before {
     background: #f8f9fa;
     z-index: 10000;
     flex-direction: row;
+    align-items: stretch;
 }
 
 .main-content {
