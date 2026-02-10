@@ -28,7 +28,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content" style="display: none;">
         <!-- Map Section (75% width) -->
         <div class="map-section">
             <div id="loading" class="loading">
@@ -45,12 +45,12 @@
             <div class="control-group">
                 <h4>View Mode</h4>
                 <select id="view-mode-select" class="view-select">
-                    <option value="sightings" selected>Sightings</option>
+                    <option value="sightings">Sightings</option>
                     <option value="trees">Trees</option>
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
                     <option value="water-monitoring">Water Monitoring</option>
-                    <option value="user-submissions">User Submissions</option>
+                    <option value="user-submissions" selected>User Submissions</option>
                 </select>
             </div>
 
@@ -291,8 +291,8 @@
     </div>
 
     <!-- User Submissions Table View -->
-    <div id="table-view" class="table-view" style="display: none;">
-        <!-- Table Section (75% width) -->
+    <div id="table-view" class="table-view" style="display: flex; background: red; position: fixed; top: 100px; left: 0; right: 0; bottom: 100px; z-index: 9999;">
+        <!-- Table Section -->
         <div class="table-section">
             <div id="table-loading" class="loading">
                 <div>Loading user data...</div>
@@ -301,17 +301,17 @@
                 <table id="submissions-table" class="submissions-table">
                     <thead>
                         <tr>
-                            <th data-sort="user">User <span class="sort-indicator"></span></th>
-                            <th data-sort="sightings">No. Sightings <span class="sort-indicator"></span></th>
-                            <th data-sort="maintenance">No. Maintenance <span class="sort-indicator"></span></th>
-                            <th data-sort="incidents">No. Incidents <span class="sort-indicator"></span></th>
-                            <th data-sort="total">Total Submissions <span class="sort-indicator">↓</span></th>
+                            <th>User</th>
+                            <th>No. Sightings</th>
+                            <th>No. Maintenance</th>
+                            <th>No. Incidents</th>
+                            <th>Total Submissions</th>
                         </tr>
                     </thead>
                     <tbody id="submissions-tbody">
                         <tr>
                             <td colspan="5" style="text-align: center; padding: 40px;">
-                                <span class="loading"></span> Loading user data...
+                                Select "User Submissions" from the view mode dropdown above.
                             </td>
                         </tr>
                     </tbody>
@@ -319,11 +319,11 @@
             </div>
         </div>
 
-        <!-- Sidebar (40% width) -->
+        <!-- Sidebar -->
         <div class="sidebar">
             <h3>Filters & Controls</h3>
 
-            <!-- View Mode Dropdown - MOVED TO TOP -->
+            <!-- View Mode Dropdown -->
             <div class="control-group">
                 <h4>View Mode</h4>
                 <select id="view-mode-select-table" class="view-select">
@@ -347,48 +347,6 @@
                     <div class="date-control">
                         <label for="table-end-date">End Date</label>
                         <input type="date" id="table-end-date">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Month/Year Selector -->
-            <div class="control-group">
-                <h4>Month & Year</h4>
-                <div class="date-controls">
-                    <div class="date-control">
-                        <label for="table-month-select">Month</label>
-                        <select id="table-month-select">
-                            <option value="">All Months</option>
-                            <option value="01">January</option>
-                            <option value="02">February</option>
-                            <option value="03">March</option>
-                            <option value="04">April</option>
-                            <option value="05">May</option>
-                            <option value="06">June</option>
-                            <option value="07">July</option>
-                            <option value="08">August</option>
-                            <option value="09">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                        </select>
-                    </div>
-                    <div class="date-control">
-                        <label for="table-year-select">Year</label>
-                        <select id="table-year-select">
-                            <option value="" selected>All Years</option>
-                            <option value="2020">2020</option>
-                            <option value="2021">2021</option>
-                            <option value="2022">2022</option>
-                            <option value="2023">2023</option>
-                            <option value="2024">2024</option>
-                            <option value="2025">2025</option>
-                            <option value="2026">2026</option>
-                            <option value="2027">2027</option>
-                            <option value="2028">2028</option>
-                            <option value="2029">2029</option>
-                            <option value="2030">2030</option>
-                        </select>
                     </div>
                 </div>
             </div>
@@ -428,6 +386,7 @@
 
 
     <script>
+        console.log('SCRIPT LOADED - PAGE SHOULD SHOW SOMETHING');
         console.log('Script loaded, starting map initialization');
         // Simple Wildlife Tracker Map
         // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
@@ -498,7 +457,7 @@
         let currentSortDirection = 'desc';
 
         // Current view state
-        let currentView = 'sightings';
+        let currentView = 'user-submissions';
         let displayMode = 'actual'; // 'actual' or 'hotspot'
         let allObservations = [];
         let latestMarkers = [];
@@ -826,7 +785,8 @@
         // Initialize map data loading
         async function initMap() {
             try {
-                console.log('initMap called');
+                console.log('INIT MAP STARTING...');
+                console.log('Current view:', currentView);
                 await Promise.all([
                     loadBoundary(),
                     loadRoads(),
@@ -1608,7 +1568,8 @@
         // Load and display user submissions data
         async function loadUserSubmissions() {
             try {
-                console.log('loadUserSubmissions called, allObservations length:', allObservations.length);
+                console.log('loadUserSubmissions called - TABLE SHOULD SHOW NOW');
+                console.log('allObservations length:', allObservations.length);
 
                 // Ensure we have observation data
                 if (allObservations.length === 0) {
@@ -1806,10 +1767,12 @@
                 }
             });
 
-            viewModeSelect.addEventListener('change', function() {
-                currentView = this.value;
+            // Function to handle view changes
+            function handleViewChange(newView) {
+                console.log('Handling view change to:', newView);
+                currentView = newView;
 
-                    // Show/hide appropriate controls
+                // Show/hide appropriate controls
                     document.getElementById('species-group').style.display =
                         currentView === 'sightings' ? 'block' : 'none';
                     document.getElementById('trees-group').style.display =
@@ -1887,6 +1850,29 @@
                         hideSpeciesLegend();
                     }
 
+                    // Show/hide map vs table view
+                    const mapView = document.getElementById('main-content');
+                    const tableView = document.getElementById('table-view');
+
+                    if (currentView === 'user-submissions') {
+                        console.log('USER SUBMISSIONS VIEW DETECTED - showing table');
+                        // Hide map, show table
+                        if (mapView) mapView.style.display = 'none';
+                        if (tableView) tableView.style.display = 'flex';
+                        // Sync table dropdown
+                        const tableDropdown = document.getElementById('view-mode-select-table');
+                        if (tableDropdown) tableDropdown.value = currentView;
+                        // Load user submissions data
+                        loadUserSubmissions();
+                    } else {
+                        // Show map, hide table
+                        if (mapView) mapView.style.display = 'flex';
+                        if (tableView) tableView.style.display = 'none';
+                        // Sync map dropdown
+                        const mapDropdown = document.getElementById('view-mode-select');
+                        if (mapDropdown) mapDropdown.value = currentView;
+                    }
+
                     // Show water monitoring markers only when water monitoring view is selected
                     if (currentView === 'water-monitoring') {
                         // Clear other layers when in water monitoring mode
@@ -1917,6 +1903,11 @@
                         // Reapply filters for other views (sightings, maintenance, incidents)
                         applyFilters();
                     }
+            }
+
+            viewModeSelect.addEventListener('change', function() {
+                console.log('View mode changed to:', this.value);
+                handleViewChange(this.value);
             });
 
             // Display mode switch (Hotspots/Actual) - use event delegation for reliability
@@ -2069,8 +2060,13 @@
         }
 
         // Start the map
-        initMap();
-        setupFilters();
+        initMap().then(() => {
+            setupFilters();
+
+            // Handle initial view state after everything is loaded
+            console.log('Setting up initial view:', currentView);
+            handleViewChange(currentView);
+        });
 
     </script>
 </body>
