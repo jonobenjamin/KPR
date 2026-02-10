@@ -304,6 +304,33 @@
         .sortable.sorted .sort-indicator {
             opacity: 1;
         }
+
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.revoked {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Status cell background colors */
+        td:has(.status.active) {
+            background: #d4edda !important;
+        }
+
+        td:has(.status.revoked) {
+            background: #f8d7da !important;
+        }
     </style>
 </head>
 <body>
@@ -425,20 +452,6 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-                    <thead>
-                        <tr>
-                            <th data-sort="user" class="sortable">User <span class="sort-indicator"></span></th>
-                            <th data-sort="sightings" class="sortable">No. Sightings <span class="sort-indicator"></span></th>
-                            <th data-sort="maintenance" class="sortable">No. Maintenance <span class="sort-indicator"></span></th>
-                            <th data-sort="incidents" class="sortable">No. Incidents <span class="sort-indicator"></span></th>
-                            <th data-sort="total" class="sortable sorted">Total Submissions <span class="sort-indicator">↓</span></th>
-                        </tr>
-                    </thead>
-                <tbody id="submissions-tbody">
-                    <!-- Data will be populated here -->
-                </tbody>
-            </table>
         </div>
     </div>
 
