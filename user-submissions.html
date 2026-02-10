@@ -30,24 +30,6 @@
             color: #2c3e50;
         }
 
-        .nav-links {
-            display: flex;
-            gap: 15px;
-        }
-
-        .nav-links a {
-            padding: 10px 20px;
-            background: #3498db;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: 500;
-            transition: background 0.3s;
-        }
-
-        .nav-links a:hover {
-            background: #2980b9;
-        }
 
         .table-container {
             background: white;
@@ -168,19 +150,20 @@
     <!-- Top Ribbon -->
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
-        <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
-            Submit Data
-        </a>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <a href="map.html" class="submit-data-btn" style="background: #3498db; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+                🗺️ Concession Map
+            </a>
+            <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
+                Submit Data
+            </a>
+        </div>
     </div>
 
     <!-- Table Page Content -->
     <div class="table-page">
         <div class="table-header">
             <h2>User Submissions Report</h2>
-            <div class="nav-links">
-                <a href="map.html">← Back to Map</a>
-                <a href="https://jonobenjamin.github.io/KPR/map4.html" target="_blank">View Live Map</a>
-            </div>
         </div>
 
         <div class="table-container">
