@@ -1211,10 +1211,15 @@
 
             const selectedSensor = document.getElementById('fire-sensor-select').value;
 
-            // Filter fires by sensor type
+            // Filter fires by sensor type only (show all Africa fires)
             const filteredFires = allFires.filter(fire => {
-                if (!selectedSensor) return true; // Show all if no filter
-                return fire.properties && fire.properties.sensor === selectedSensor;
+                // Check sensor type
+                if (selectedSensor && fire.properties && fire.properties.sensor !== selectedSensor) {
+                    return false;
+                }
+
+                // Include all fires with valid coordinates
+                return fire.geometry && fire.geometry.coordinates;
             });
 
             console.log('Displaying', filteredFires.length, 'fires from', allFires.length, 'total');
@@ -1275,6 +1280,7 @@
             const timeStr = acqTime.toString().padStart(4, '0');
             return `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`;
         }
+
 
         function applyFilters() {
             // Clear all markers first
