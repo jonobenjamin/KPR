@@ -22,9 +22,14 @@
     <!-- Top Ribbon -->
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
-        <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
-            Submit Data
-        </a>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <a href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+                📊 User Submissions
+            </a>
+            <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
+                Submit Data
+            </a>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -50,7 +55,7 @@
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
                     <option value="water-monitoring">Water Monitoring</option>
-                    <option value="user-submissions">User Submissions</option>
+                    <option value="user-submissions" data-url="user-submissions.html">User Submissions</option>
                 </select>
             </div>
 
@@ -295,128 +300,6 @@
         <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
     </div>
 
-    <!-- User Submissions Table View -->
-    <div id="table-view" class="table-view" style="display: none;">
-        <!-- Table Section (75% width) -->
-        <div class="table-section">
-            <div id="table-loading" class="loading">
-                <div>Loading user data...</div>
-            </div>
-            <div class="submissions-table-container">
-                <table id="submissions-table" class="submissions-table">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>No. Sightings</th>
-                            <th>No. Maintenance</th>
-                            <th>No. Incidents</th>
-                            <th>Total Submissions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="submissions-tbody">
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 40px;">
-                                Select date filters and click refresh to load data.
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Sidebar (40% width) -->
-        <div class="sidebar">
-            <h3>Filters & Controls</h3>
-
-            <!-- View Mode Dropdown -->
-            <div class="control-group">
-                <h4>View Mode</h4>
-                <select id="view-mode-select-table" class="view-select">
-                    <option value="sightings">Sightings</option>
-                    <option value="trees">Trees</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="incidents">Incidents</option>
-                    <option value="water-monitoring">Water Monitoring</option>
-                    <option value="user-submissions" selected>User Submissions</option>
-                </select>
-            </div>
-
-            <!-- Date Range Controls -->
-            <div class="control-group">
-                <h4>Date Range</h4>
-                <div class="date-controls">
-                    <div class="date-control">
-                        <label for="table-start-date">Start Date</label>
-                        <input type="date" id="table-start-date">
-                    </div>
-                    <div class="date-control">
-                        <label for="table-end-date">End Date</label>
-                        <input type="date" id="table-end-date">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Month/Year Selector -->
-            <div class="control-group">
-                <h4>Month & Year</h4>
-                <div class="date-controls">
-                    <div class="date-control">
-                        <label for="table-month-select">Month</label>
-                        <select id="table-month-select">
-                            <option value="">All Months</option>
-                            <option value="01">January</option>
-                            <option value="02">February</option>
-                            <option value="03">March</option>
-                            <option value="04">April</option>
-                            <option value="05">May</option>
-                            <option value="06">June</option>
-                            <option value="07">July</option>
-                            <option value="08">August</option>
-                            <option value="09">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                        </select>
-                    </div>
-                    <div class="date-control">
-                        <label for="table-year-select">Year</label>
-                        <select id="table-year-select">
-                            <option value="" selected>All Years</option>
-                            <option value="2020">2020</option>
-                            <option value="2021">2021</option>
-                            <option value="2022">2022</option>
-                            <option value="2023">2023</option>
-                            <option value="2024">2024</option>
-                            <option value="2025">2025</option>
-                            <option value="2026">2026</option>
-                            <option value="2027">2027</option>
-                            <option value="2028">2028</option>
-                            <option value="2029">2029</option>
-                            <option value="2030">2030</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Refresh Button -->
-            <div class="control-group">
-                <button id="refresh-table-btn" class="btn-submit" style="width: 100%; margin-top: 10px;">Refresh Data</button>
-            </div>
-
-            <!-- Stats Display -->
-            <div class="control-group">
-                <h4>Summary</h4>
-                <div class="stats-display">
-                    <span class="stat-number" id="table-total-users">0</span>
-                    <span class="stat-label">Total Users</span>
-                </div>
-                <div class="stats-display">
-                    <span class="stat-number" id="table-total-submissions">0</span>
-                    <span class="stat-label">Total Submissions</span>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1730,6 +1613,15 @@
         function setupFilters() {
             // View mode dropdown
             document.getElementById('view-mode-select').addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const url = selectedOption.getAttribute('data-url');
+
+                if (url) {
+                    // Navigate to the specified URL
+                    window.location.href = url;
+                    return;
+                }
+
                 currentView = this.value;
 
                     // Show/hide appropriate controls
@@ -1766,27 +1658,6 @@
                         hideSpeciesLegend();
                     }
 
-                    // Show/hide map vs table view
-                    const mapView = document.getElementById('main-content');
-                    const tableView = document.getElementById('table-view');
-
-                    if (currentView === 'user-submissions') {
-                        // Hide map, show table
-                        if (mapView) mapView.style.display = 'none';
-                        if (tableView) tableView.style.display = 'flex';
-                        // Sync table dropdown
-                        const tableDropdown = document.getElementById('view-mode-select-table');
-                        if (tableDropdown) tableDropdown.value = currentView;
-                        // Load user submissions data
-                        loadUserSubmissions();
-                    } else {
-                        // Show map, hide table
-                        if (mapView) mapView.style.display = 'flex';
-                        if (tableView) tableView.style.display = 'none';
-                        // Sync map dropdown
-                        const mapDropdown = document.getElementById('view-mode-select');
-                        if (mapDropdown) mapDropdown.value = currentView;
-                    }
 
                     // Show water monitoring markers only when water monitoring view is selected
                     if (currentView === 'water-monitoring') {
@@ -1797,10 +1668,10 @@
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         displayTrees();
-                    } else if (currentView !== 'user-submissions') {
+                    } else {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
-                        // Reapply filters for map views only
+                        // Reapply filters for map views
                         applyFilters();
                     }
             });
@@ -1856,140 +1727,8 @@
 
             // Water monitoring submit button
             document.getElementById('submit-water-data').addEventListener('click', submitWaterMonitoringData);
-
-            // Table view dropdown
-            const tableViewSelect = document.getElementById('view-mode-select-table');
-            if (tableViewSelect) {
-                tableViewSelect.addEventListener('change', function() {
-                    // Sync the main dropdown and trigger change
-                    const mainSelect = document.getElementById('view-mode-select');
-                    if (mainSelect) {
-                        mainSelect.value = this.value;
-                        mainSelect.dispatchEvent(new Event('change'));
-                    }
-                });
-            }
-
-            // Table date filters
-            ['table-start-date', 'table-end-date', 'table-month-select', 'table-year-select'].forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.addEventListener('change', loadUserSubmissions);
-                }
-            });
-
-            // Table refresh button
-            const refreshBtn = document.getElementById('refresh-table-btn');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', loadUserSubmissions);
-            }
         }
 
-        // Load and display user submissions data
-        async function loadUserSubmissions() {
-            try {
-                // Get date filters from table controls
-                const startDate = document.getElementById('table-start-date')?.value || '';
-                const endDate = document.getElementById('table-end-date')?.value || '';
-                const selectedMonth = document.getElementById('table-month-select')?.value || '';
-                const selectedYear = document.getElementById('table-year-select')?.value || '';
-
-                // Filter observations by date
-                const filteredObservations = allObservations.filter(obs => {
-                    // Date range filter
-                    if (startDate || endDate) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (startDate && obsDate < new Date(startDate)) return false;
-                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
-                    }
-
-                    // Month/Year filter
-                    if (selectedMonth || selectedYear) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
-                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
-                    }
-
-                    return true;
-                });
-
-                // Aggregate data by user
-                const userStats = {};
-
-                filteredObservations.forEach(obs => {
-                    const user = obs.user || 'Anonymous';
-                    if (!userStats[user]) {
-                        userStats[user] = {
-                            user: user,
-                            sightings: 0,
-                            maintenance: 0,
-                            incidents: 0,
-                            total: 0
-                        };
-                    }
-
-                    // Count by category
-                    if (obs.category === 'Sighting') {
-                        userStats[user].sightings++;
-                    } else if (obs.category === 'Maintenance') {
-                        userStats[user].maintenance++;
-                    } else if (obs.category === 'Incident') {
-                        userStats[user].incidents++;
-                    }
-
-                    userStats[user].total++;
-                });
-
-                // Convert to array and sort by total submissions (descending)
-                const userArray = Object.values(userStats);
-                userArray.sort((a, b) => b.total - a.total);
-
-                // Display the data
-                displayUserSubmissions(userArray);
-
-            } catch (error) {
-                console.error('Error loading user submissions:', error);
-                const tbody = document.getElementById('submissions-tbody');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Error loading data</td></tr>';
-                }
-            }
-        }
-
-        // Display user submissions in table
-        function displayUserSubmissions(userData) {
-            // Hide loading
-            const loading = document.getElementById('table-loading');
-            if (loading) loading.style.display = 'none';
-
-            // Update stats
-            const totalUsersElement = document.getElementById('table-total-users');
-            const totalSubmissionsElement = document.getElementById('table-total-submissions');
-
-            if (totalUsersElement) totalUsersElement.textContent = userData.length;
-            if (totalSubmissionsElement) {
-                const totalSubmissions = userData.reduce((sum, user) => sum + user.total, 0);
-                totalSubmissionsElement.textContent = totalSubmissions;
-            }
-
-            const tbody = document.getElementById('submissions-tbody');
-            if (!tbody) return;
-
-            if (userData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No submissions found for the selected date range</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = userData.map(user => `
-                <tr>
-                    <td>${user.user}</td>
-                    <td>${user.sightings}</td>
-                    <td>${user.maintenance}</td>
-                    <td>${user.incidents}</td>
-                    <td>${user.total}</td>
-                </tr>
-            `).join('');
-        }
 
         // Start the map
         initMap();
