@@ -746,7 +746,6 @@
         // Load observations
         async function loadObservations() {
             try {
-                console.log('Loading observations...');
                 const response = await fetch(`${API_BASE_URL}/api/observations`, {
                     headers: getAuthHeaders()
                 });
@@ -758,17 +757,7 @@
 
                 if (data.success && data.data) {
                     allObservations = data.data; // Store all observations
-                    console.log('Sample observations:', data.data.slice(0, 3).map(obs => ({
-                        category: obs.category,
-                        timestamp: obs.timestamp,
-                        animal: obs.animal,
-                        lat: obs.latitude,
-                        lng: obs.longitude
-                    })));
 
-                    // Log unique animal names for debugging
-                    const uniqueAnimals = [...new Set(data.data.filter(obs => obs.category === 'Sighting').map(obs => obs.animal).filter(Boolean))];
-                    console.log('Unique animal names in data:', uniqueAnimals);
 
 
                     data.data.forEach(observation => {
@@ -1233,16 +1222,6 @@
                         const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
                         const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
 
-                        // Debug logging (only for first few to avoid spam)
-                        if (obs.category === 'Sighting' && Math.random() < 0.1) {
-                            console.log('Species filter debug:', {
-                                original: obs.animal,
-                                normalized: obsAnimal,
-                                filter: filterSpecies,
-                                matches: obsAnimal.includes(filterSpecies) || obsAnimal === filterSpecies
-                            });
-                        }
-
                         // Check for match
                         if (!obsAnimal.includes(filterSpecies) &&
                             !obsAnimalNormalized.includes(filterNormalized) &&
@@ -1254,6 +1233,7 @@
 
                 return true;
             });
+
 
             if (displayMode === 'hotspot') {
                 // Create heat map using Leaflet.heat plugin
@@ -1843,18 +1823,31 @@
                     const tableView = document.getElementById('table-view');
 
                     if (currentView === 'user-submissions') {
-                        // Hide map, show table
+                        // Completely hide map container, show table in its place
                         if (mapView) mapView.style.display = 'none';
                         if (tableView) tableView.style.display = 'block';
                         loadUserSubmissions();
                     } else {
-                        // Show map, hide table
-                        if (mapView) mapView.style.display = 'flex';
+                        // Show map container, hide table
+                        if (mapView) {
+                            mapView.style.display = 'flex';
+                            // Ensure map is properly sized after being hidden
+                            setTimeout(() => {
+                                map.invalidateSize();
+                            }, 100);
+                        }
                         if (tableView) tableView.style.display = 'none';
 
                         // Reapply filters for the current view
                         if (currentView === 'sightings' || currentView === 'maintenance' || currentView === 'incidents' || currentView === 'water-monitoring') {
-                            applyFilters();
+                            // Ensure we have data before applying filters
+                            if (allObservations.length === 0) {
+                                loadObservations().then(() => {
+                                    applyFilters();
+                                });
+                            } else {
+                                applyFilters();
+                            }
                         }
                     }
 
@@ -1870,12 +1863,12 @@
                     // Show/hide date controls for water monitoring
                     const allControlGroups = document.querySelectorAll('.control-group');
 
-                    if (currentView === 'water-monitoring' || currentView === 'trees' || currentView === 'user-submissions') {
-                        // Hide date range (index 1) and month/year (index 2) controls for water monitoring, trees, and user submissions
+                    if (currentView === 'water-monitoring' || currentView === 'trees') {
+                        // Hide date range (index 1) and month/year (index 2) controls for water monitoring and trees
                         allControlGroups[1].style.display = 'none'; // Date Range
                         allControlGroups[2].style.display = 'none'; // Month & Year
                     } else {
-                        // Show date controls for other views
+                        // Show date controls for other views (including user-submissions)
                         allControlGroups[1].style.display = 'block'; // Date Range
                         allControlGroups[2].style.display = 'block'; // Month & Year
                     }
