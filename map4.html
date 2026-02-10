@@ -23,8 +23,8 @@
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
-            <a href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
-                📊 User Submissions
+            <a href="admin.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+                🔐 Admin Panel
             </a>
             <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
                 Submit Data
@@ -55,6 +55,7 @@
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
                     <option value="water-monitoring">Water Monitoring</option>
+                    <option value="fires">Fires</option>
                 </select>
             </div>
 
@@ -291,6 +292,42 @@
                     <button id="submit-water-data" class="btn-submit">Submit Water Data</button>
                 </div>
             </div>
+
+            <!-- Fire Data Controls -->
+            <div class="control-group" id="fires-group" style="display: none;">
+                <h4>Fire Data</h4>
+
+                <!-- Sensor Type Filter -->
+                <div class="form-group">
+                    <label for="fire-sensor-select">Sensor Type</label>
+                    <select id="fire-sensor-select" class="view-select">
+                        <option value="">All Sensors</option>
+                        <option value="VIIRS">VIIRS</option>
+                        <option value="MODIS">MODIS</option>
+                    </select>
+                </div>
+
+                <!-- Days Back Filter -->
+                <div class="form-group">
+                    <label for="fire-days-select">Days Back</label>
+                    <select id="fire-days-select" class="view-select">
+                        <option value="1">1 Day</option>
+                        <option value="3" selected>3 Days</option>
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                        <option value="30">30 Days</option>
+                    </select>
+                </div>
+
+                <!-- Stats Display -->
+                <div class="stats-display">
+                    <span class="stat-number" id="fires-count">0</span>
+                    <span class="stat-label">Total Fires</span>
+                </div>
+
+                <!-- Refresh Button -->
+                <button id="refresh-fires" class="btn-submit" style="width: 100%; margin-top: 10px;">Refresh Fire Data</button>
+            </div>
         </div>
     </div>
 
@@ -345,6 +382,7 @@
         const campsLayer = L.layerGroup().addTo(map);
         const treesLayer = L.layerGroup().addTo(map);
         const observationsLayer = L.layerGroup().addTo(map);
+        const firesLayer = L.layerGroup().addTo(map);
 
         // Store markers by type for filtering
         const markersByType = {
@@ -384,6 +422,10 @@
         let allObservations = [];
         let latestMarkers = [];
         let speciesLegend = null;
+
+        // Fire data state
+        let allFires = [];
+        let fireMarkers = [];
 
         // Water monitoring locations
         const waterMonitoringLocations = {
@@ -866,6 +908,38 @@
             hideSpeciesLegend(); // Reuse the same function since they use the same variable
         }
 
+        function showFiresLegend() {
+            // Remove existing legend
+            if (speciesLegend) {
+                map.removeControl(speciesLegend);
+            }
+
+            // Create new legend
+            speciesLegend = L.control({ position: 'topright' });
+
+            speciesLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'species-legend');
+                div.innerHTML = `
+                    <h4>Fire Sensors</h4>
+                    <div class="species-item">
+                        <div class="species-dot" style="background-color: red; width: 12px; height: 12px; border-radius: 50%;"></div>
+                        <span class="species-name">VIIRS (High Resolution)</span>
+                    </div>
+                    <div class="species-item">
+                        <div class="species-dot" style="background-color: orange; width: 10px; height: 10px; border-radius: 50%;"></div>
+                        <span class="species-name">MODIS (Moderate Resolution)</span>
+                    </div>
+                `;
+                return div;
+            };
+
+            speciesLegend.addTo(map);
+        }
+
+        function hideFiresLegend() {
+            hideSpeciesLegend(); // Reuse the same function since they use the same variable
+        }
+
         // Show water monitoring markers
         function showWaterMonitoringMarkers() {
             // Clear existing water monitoring markers
@@ -1090,6 +1164,116 @@
             observationsLayer.clearLayers();
             clearLatestMarkers();
             hideSpeciesLegend();
+        }
+
+        function clearFireMarkers() {
+            // Clear all fire markers
+            firesLayer.clearLayers();
+            fireMarkers = [];
+            // Hide fire legend when clearing markers
+            hideFiresLegend();
+        }
+
+        // Fetch fire data from API
+        async function loadFires() {
+            try {
+                console.log('Loading fire data...');
+                const days = document.getElementById('fire-days-select').value || '3';
+                const response = await fetch(`${API_BASE_URL}/api/fires?country=BWA&days=${days}`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) throw new Error(`Fires API returned ${response.status}`);
+
+                const data = await response.json();
+                console.log('Fire data loaded:', data);
+
+                if (data && data.features) {
+                    allFires = data.features;
+                    console.log('Fire data loaded successfully, count:', allFires.length);
+                    displayFires();
+                } else {
+                    allFires = [];
+                    showError('No fire data available');
+                }
+
+            } catch (error) {
+                console.error('Error loading fire data:', error);
+                showError('Failed to load fire data. Check your connection and try again.');
+                allFires = [];
+            }
+        }
+
+        // Display fire markers
+        function displayFires() {
+            // Clear existing fire markers
+            clearFireMarkers();
+
+            const selectedSensor = document.getElementById('fire-sensor-select').value;
+
+            // Filter fires by sensor type
+            const filteredFires = allFires.filter(fire => {
+                if (!selectedSensor) return true; // Show all if no filter
+                return fire.properties && fire.properties.sensor === selectedSensor;
+            });
+
+            console.log('Displaying', filteredFires.length, 'fires from', allFires.length, 'total');
+
+            filteredFires.forEach(fire => {
+                if (fire.geometry && fire.geometry.coordinates) {
+                    const coords = fire.geometry.coordinates;
+                    const properties = fire.properties || {};
+
+                    // Create marker based on sensor type
+                    let marker;
+                    if (properties.sensor === "VIIRS") {
+                        marker = L.circleMarker([coords[1], coords[0]], {
+                            radius: 6,
+                            color: "red",
+                            fillColor: "red",
+                            fillOpacity: 0.8,
+                            weight: 2
+                        });
+                    } else {
+                        // MODIS
+                        marker = L.circleMarker([coords[1], coords[0]], {
+                            radius: 5,
+                            color: "orange",
+                            fillColor: "orange",
+                            fillOpacity: 0.7,
+                            weight: 2
+                        });
+                    }
+
+                    // Create popup content
+                    const popupContent = `
+                        <strong>${properties.sensor || 'Unknown'} Fire Detection</strong><br>
+                        <strong>Confidence:</strong> ${properties.confidence || 'N/A'}%<br>
+                        <strong>FRP:</strong> ${properties.frp || 'N/A'} MW<br>
+                        <strong>Brightness:</strong> ${properties.brightness || 'N/A'} K<br>
+                        <strong>Time:</strong> ${properties.acq_time ? formatAcqTime(properties.acq_time) : 'N/A'}<br>
+                        <strong>Date:</strong> ${properties.acq_date || 'N/A'}<br>
+                        <small>Lat: ${coords[1].toFixed(4)}, Lng: ${coords[0].toFixed(4)}</small>
+                    `;
+
+                    marker.bindPopup(popupContent);
+                    marker.addTo(firesLayer);
+                    fireMarkers.push(marker);
+                }
+            });
+
+            // Update fire count
+            document.getElementById('fires-count').textContent = filteredFires.length;
+
+            // Show fire legend
+            showFiresLegend();
+        }
+
+        // Format acquisition time (HHMM format to HH:MM)
+        function formatAcqTime(acqTime) {
+            if (!acqTime || typeof acqTime !== 'string') return 'N/A';
+            const timeStr = acqTime.toString().padStart(4, '0');
+            return `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`;
         }
 
         function applyFilters() {
@@ -1634,6 +1818,8 @@
                         currentView === 'incidents' ? 'block' : 'none';
                     // Water monitoring group stays visible to allow switching back
                     document.getElementById('water-monitoring-group').style.display = 'block';
+                    document.getElementById('fires-group').style.display =
+                        currentView === 'fires' ? 'block' : 'none';
 
                     // Show/hide date controls for water monitoring
                     const allControlGroups = document.querySelectorAll('.control-group');
@@ -1653,6 +1839,8 @@
                         showSpeciesLegend();
                     } else if (currentView === 'trees') {
                         // Trees legend is handled in displayTrees()
+                    } else if (currentView === 'fires') {
+                        showFiresLegend();
                     } else {
                         hideSpeciesLegend();
                     }
@@ -1666,10 +1854,22 @@
                     } else if (currentView === 'trees') {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
+                        clearFireMarkers();
                         displayTrees();
+                    } else if (currentView === 'fires') {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                        // Load fire data if not already loaded
+                        if (allFires.length === 0) {
+                            loadFires();
+                        } else {
+                            displayFires();
+                        }
                     } else {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
+                        clearFireMarkers();
                         // Reapply filters for map views
                         applyFilters();
                     }
@@ -1726,6 +1926,14 @@
 
             // Water monitoring submit button
             document.getElementById('submit-water-data').addEventListener('click', submitWaterMonitoringData);
+
+            // Fire controls
+            document.getElementById('fire-sensor-select').addEventListener('change', displayFires);
+            document.getElementById('fire-days-select').addEventListener('change', () => {
+                // Reload fire data when days change
+                loadFires();
+            });
+            document.getElementById('refresh-fires').addEventListener('click', loadFires);
         }
 
 
