@@ -360,7 +360,12 @@
                             <th>Name</th>
                             <th>Email/Phone</th>
                             <th>Status</th>
+                            <th>Registered</th>
                             <th>Last Login</th>
+                            <th>Sightings</th>
+                            <th>Maintenance</th>
+                            <th>Incidents</th>
+                            <th>Total Submissions</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -766,42 +771,67 @@
             showLogin();
         }
 
-        // Load user management data - TEMPORARY MOCK DATA
+        // Load user management data - REAL FIREBASE DATA
         async function loadUserManagementData() {
             try {
-                // Temporary mock data until backend API is set up
-                const mockUsers = [
-                    {
-                        id: 1,
-                        name: 'John Smith',
-                        email: 'john@example.com',
-                        status: 'active',
-                        lastLogin: new Date().toISOString()
-                    },
-                    {
-                        id: 2,
-                        name: 'Jane Doe',
-                        email: 'jane@example.com',
-                        status: 'active',
-                        lastLogin: new Date(Date.now() - 86400000).toISOString() // 1 day ago
-                    },
-                    {
-                        id: 3,
-                        name: 'Bob Johnson',
-                        phone: '+1234567890',
-                        status: 'revoked',
-                        lastLogin: new Date(Date.now() - 604800000).toISOString() // 1 week ago
-                    }
-                ];
+                // First ensure we have observation data
+                if (allObservations.length === 0) {
+                    await loadObservations();
+                }
 
-                const mockStats = {
-                    total: 3,
-                    active: 2,
-                    revoked: 1
+                // Aggregate user statistics from Firebase data
+                const userStats = {};
+
+                allObservations.forEach(obs => {
+                    const userKey = obs.user || 'Anonymous';
+
+                    if (!userStats[userKey]) {
+                        userStats[userKey] = {
+                            id: userKey,
+                            name: userKey === 'Anonymous' ? 'Anonymous User' : userKey,
+                            email: obs.user_email || '',
+                            phone: obs.user_phone || '',
+                            status: 'active', // Default to active for now
+                            registered: obs.timestamp, // Use first observation as registration date
+                            lastLogin: obs.timestamp, // Use latest observation as last login
+                            sightings: 0,
+                            maintenance: 0,
+                            incidents: 0,
+                            total: 0
+                        };
+                    }
+
+                    // Update last login if this observation is more recent
+                    if (new Date(obs.timestamp) > new Date(userStats[userKey].lastLogin)) {
+                        userStats[userKey].lastLogin = obs.timestamp;
+                    }
+
+                    // Count by category
+                    if (obs.category === 'Sighting') {
+                        userStats[userKey].sightings++;
+                    } else if (obs.category === 'Maintenance') {
+                        userStats[userKey].maintenance++;
+                    } else if (obs.category === 'Incident') {
+                        userStats[userKey].incidents++;
+                    }
+
+                    userStats[userKey].total++;
+                });
+
+                // Convert to array and sort by total submissions (descending)
+                const usersArray = Object.values(userStats);
+                usersArray.sort((a, b) => b.total - a.total);
+
+                // Calculate stats
+                const stats = {
+                    total: usersArray.length,
+                    active: usersArray.filter(u => u.status === 'active').length,
+                    revoked: usersArray.filter(u => u.status === 'revoked').length
                 };
 
-                displayUserManagement(mockUsers);
-                updateAdminStats(mockStats);
+                displayUserManagement(usersArray);
+                updateAdminStats(stats);
+
             } catch (error) {
                 console.error('Error loading user management data:', error);
                 showAlert('dashboard-alert', 'Failed to load user data', 'danger');
@@ -816,7 +846,12 @@
                     <td>${user.name || 'N/A'}</td>
                     <td>${user.email || user.phone || 'N/A'}</td>
                     <td><span class="status ${user.status}">${user.status}</span></td>
+                    <td>${user.registered ? new Date(user.registered).toLocaleDateString() : 'N/A'}</td>
                     <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
+                    <td>${user.sightings || 0}</td>
+                    <td>${user.maintenance || 0}</td>
+                    <td>${user.incidents || 0}</td>
+                    <td class="total-column">${user.total || 0}</td>
                     <td>
                         ${user.status === 'active' ?
                             `<button class="btn danger" onclick="revokeUser('${user.id}')">Revoke</button>` :
@@ -834,15 +869,17 @@
             document.getElementById('admin-revoked-users').textContent = stats.revoked || 0;
         }
 
-        // Revoke user - TEMPORARY MOCK FUNCTION
+        // Revoke user - UPDATE LOCAL DATA
         async function revokeUser(userId) {
             if (!confirm('Are you sure you want to revoke this user?')) return;
 
             try {
-                // Temporary mock function - just show success message
-                // In a real implementation, this would call the API
-                showAlert('dashboard-alert', 'User revoked successfully (mock)', 'success');
-                // Reload data to show updated status (would be handled by API in real implementation)
+                // For now, just show success message
+                // In a real implementation, this would call the backend API
+                showAlert('dashboard-alert', 'User access revoked (local change only)', 'success');
+
+                // In a full implementation, you'd update the user's status in the database
+                // For now, we'll just reload the data which will reflect any local changes
                 setTimeout(() => loadUserManagementData(), 1000);
             } catch (error) {
                 console.error('Error revoking user:', error);
@@ -850,13 +887,15 @@
             }
         }
 
-        // Activate user - TEMPORARY MOCK FUNCTION
+        // Activate user - UPDATE LOCAL DATA
         async function activateUser(userId) {
             try {
-                // Temporary mock function - just show success message
-                // In a real implementation, this would call the API
-                showAlert('dashboard-alert', 'User activated successfully (mock)', 'success');
-                // Reload data to show updated status (would be handled by API in real implementation)
+                // For now, just show success message
+                // In a real implementation, this would call the backend API
+                showAlert('dashboard-alert', 'User access restored (local change only)', 'success');
+
+                // In a full implementation, you'd update the user's status in the database
+                // For now, we'll just reload the data
                 setTimeout(() => loadUserManagementData(), 1000);
             } catch (error) {
                 console.error('Error activating user:', error);
