@@ -456,13 +456,15 @@ input:checked + .slider:before {
 /* Table View Styles */
 .table-view {
     position: absolute;
-    top: 80px; /* Below top ribbon */
+    top: 0;
     left: 0;
     right: 0;
-    bottom: 50px; /* Above bottom ribbon */
+    bottom: 0;
     background: #f8f9fa;
     padding: 20px;
     overflow-y: auto;
+    z-index: 1000;
+    display: none;
 }
 
 .table-view h2 {
@@ -611,6 +613,16 @@ input:checked + .slider:before {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Hide main content when table is shown */
+.main-content.hidden {
+    display: none !important;
+}
+
+.table-view.visible {
+    display: block !important;
+    visibility: visible !important;
 }
 
 .loading {
