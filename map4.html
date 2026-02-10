@@ -1610,6 +1610,12 @@
             try {
                 console.log('loadUserSubmissions called, allObservations length:', allObservations.length);
 
+                // Ensure we have observation data
+                if (allObservations.length === 0) {
+                    console.log('No observation data available yet, loading observations first...');
+                    await loadObservations();
+                }
+
                 // Get date filters
                 const startDate = document.getElementById('table-start-date').value;
                 const endDate = document.getElementById('table-end-date').value;
@@ -1822,7 +1828,7 @@
                     if (currentView === 'user-submissions') {
                         // Hide map, show table
                         document.getElementById('main-content').style.display = 'none';
-                        document.getElementById('table-view').style.display = 'block';
+                        document.getElementById('table-view').style.display = 'flex';
                         // Sync table dropdown
                         if (document.getElementById('view-mode-select-table')) {
                             document.getElementById('view-mode-select-table').value = currentView;
