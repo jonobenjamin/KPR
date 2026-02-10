@@ -1179,7 +1179,7 @@
             try {
                 console.log('Loading fire data...');
                 const days = document.getElementById('fire-days-select').value || '3';
-                const response = await fetch(`${API_BASE_URL}/api/fires?country=AFR&days=${days}`, {
+                const response = await fetch(`${API_BASE_URL}/api/fires?country=USA&days=${days}`, {
                     headers: getAuthHeaders()
                 });
 
