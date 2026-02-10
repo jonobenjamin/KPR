@@ -352,26 +352,66 @@
             </div>
         </div>
 
-        <!-- Tabs for different admin sections -->
-        <div class="admin-tabs" style="margin-bottom: 20px;">
-            <button class="tab-btn active" onclick="showTab('users')">User Management</button>
-            <button class="tab-btn" onclick="showTab('submissions')">User Submissions</button>
+        <!-- Date Filters -->
+        <div class="table-controls" style="margin-bottom: 20px;">
+            <div class="table-filters">
+                <div class="date-controls">
+                    <div class="date-control">
+                        <label for="start-date">Start Date</label>
+                        <input type="date" id="start-date">
+                    </div>
+                    <div class="date-control">
+                        <label for="end-date">End Date</label>
+                        <input type="date" id="end-date">
+                    </div>
+                    <div class="date-control">
+                        <label for="month-select">Month</label>
+                        <select id="month-select">
+                            <option value="">All Months</option>
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="date-control">
+                        <label for="year-select">Year</label>
+                        <select id="year-select">
+                            <option value="" selected>All Years</option>
+                            <option value="2020">2020</option>
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                            <option value="2029">2029</option>
+                            <option value="2030">2030</option>
+                        </select>
+                    </div>
+                    <button id="refresh-btn" class="btn-primary">Refresh Data</button>
+                </div>
+            </div>
         </div>
 
-        <!-- User Management Tab -->
-        <div id="users-tab" class="admin-tab">
-            <div class="table-container">
-                <table id="users-table">
+        <div class="table-container">
+            <table id="users-table">
                     <thead>
                         <tr>
-                            <th data-sort="name" class="sortable">Name <span class="sort-indicator"></span></th>
+                            <th data-sort="name" class="sortable sorted">Name <span class="sort-indicator">↑</span></th>
                             <th data-sort="contact" class="sortable">Email/Phone <span class="sort-indicator"></span></th>
                             <th data-sort="status" class="sortable">Status <span class="sort-indicator"></span></th>
                             <th data-sort="lastLogin" class="sortable">Last Login <span class="sort-indicator"></span></th>
-                            <th data-sort="total" class="sortable sorted">Total Submissions <span class="sort-indicator">↓</span></th>
-                            <th data-sort="sightings" class="sortable">Sightings <span class="sort-indicator"></span></th>
-                            <th data-sort="incidents" class="sortable">Incidents <span class="sort-indicator"></span></th>
-                            <th data-sort="maintenance" class="sortable">Maintenance <span class="sort-indicator"></span></th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -381,81 +421,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- User Submissions Tab -->
-        <div id="submissions-tab" class="admin-tab hidden">
-            <div class="table-header">
-                <h2>User Submissions Report</h2>
-            </div>
-
-        <div class="table-container">
-            <div class="table-controls">
-                <div class="table-filters">
-                    <div class="date-controls">
-                        <div class="date-control">
-                            <label for="start-date">Start Date</label>
-                            <input type="date" id="start-date">
-                        </div>
-                        <div class="date-control">
-                            <label for="end-date">End Date</label>
-                            <input type="date" id="end-date">
-                        </div>
-                        <div class="date-control">
-                            <label for="month-select">Month</label>
-                            <select id="month-select">
-                                <option value="">All Months</option>
-                                <option value="01">January</option>
-                                <option value="02">February</option>
-                                <option value="03">March</option>
-                                <option value="04">April</option>
-                                <option value="05">May</option>
-                                <option value="06">June</option>
-                                <option value="07">July</option>
-                                <option value="08">August</option>
-                                <option value="09">September</option>
-                                <option value="10">October</option>
-                                <option value="11">November</option>
-                                <option value="12">December</option>
-                            </select>
-                        </div>
-                        <div class="date-control">
-                            <label for="year-select">Year</label>
-                            <select id="year-select">
-                                <option value="" selected>All Years</option>
-                                <option value="2020">2020</option>
-                                <option value="2021">2021</option>
-                                <option value="2022">2022</option>
-                                <option value="2023">2023</option>
-                                <option value="2024">2024</option>
-                                <option value="2025">2025</option>
-                                <option value="2026">2026</option>
-                                <option value="2027">2027</option>
-                                <option value="2028">2028</option>
-                                <option value="2029">2029</option>
-                                <option value="2030">2030</option>
-                            </select>
-                        </div>
-                        <button id="refresh-btn" class="btn-primary">Refresh Data</button>
-                    </div>
-                </div>
-
-                <div class="table-stats">
-                    <div class="stat-box">
-                        <span class="stat-number" id="total-users">0</span>
-                        <span class="stat-label">Total Users</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-number" id="total-submissions">0</span>
-                        <span class="stat-label">Total Submissions</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="loading" class="loading">
-                <div>Loading user submissions data...</div>
-            </div>
-
-                <table id="submissions-table" class="submissions-table" style="display: none;">
                     <thead>
                         <tr>
                             <th data-sort="user" class="sortable">User <span class="sort-indicator"></span></th>
@@ -499,228 +464,12 @@
             };
         }
 
-        let allObservations = [];
-
-        // Load observations data
-        async function loadObservations() {
-            try {
-                console.log('Loading observations...');
-                const response = await fetch(`${API_BASE_URL}/api/observations`, {
-                    headers: getAuthHeaders()
-                });
-                if (!response.ok) throw new Error(`Observations API returned ${response.status}`);
-
-                const data = await response.json();
-                console.log('Observations data loaded:', data.data ? data.data.length : 0, 'records');
-
-                if (data.success && data.data) {
-                    allObservations = data.data;
-                    console.log('Data loaded successfully');
-                } else {
-                    console.log('No data received');
-                }
-
-            } catch (error) {
-                console.error('Error loading observations:', error);
-                showError('Failed to load observation data');
-            }
-        }
 
         // Load and display user submissions data
-        async function loadUserSubmissions() {
-            try {
-                console.log('Loading user submissions...');
 
-                // Show loading
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('submissions-table').style.display = 'none';
-
-                // Get date filters
-                const startDate = document.getElementById('start-date').value;
-                const endDate = document.getElementById('end-date').value;
-                const selectedMonth = document.getElementById('month-select').value;
-                const selectedYear = document.getElementById('year-select').value;
-
-                // Filter observations by date
-                const filteredObservations = allObservations.filter(obs => {
-                    // Date range filter
-                    if (startDate || endDate) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (startDate && obsDate < new Date(startDate)) return false;
-                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
-                    }
-
-                    // Month/Year filter
-                    if (selectedMonth || selectedYear) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
-                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
-                    }
-
-                    return true;
-                });
-
-                console.log('Filtered observations:', filteredObservations.length);
-
-                // Aggregate data by user
-                const userStats = {};
-
-                filteredObservations.forEach(obs => {
-                    const user = obs.user || 'Anonymous';
-                    if (!userStats[user]) {
-                        userStats[user] = {
-                            user: user,
-                            sightings: 0,
-                            maintenance: 0,
-                            incidents: 0,
-                            total: 0
-                        };
-                    }
-
-                    // Count by category
-                    if (obs.category === 'Sighting') {
-                        userStats[user].sightings++;
-                    } else if (obs.category === 'Maintenance') {
-                        userStats[user].maintenance++;
-                    } else if (obs.category === 'Incident') {
-                        userStats[user].incidents++;
-                    }
-
-                    userStats[user].total++;
-                });
-
-                // Convert to array and sort by current settings
-                let userArray = Object.values(userStats);
-
-                // Sort by current column and direction
-                userArray.sort((a, b) => {
-                    let aVal, bVal;
-
-                    switch (currentSortColumn) {
-                        case 'user':
-                            aVal = a.user.toLowerCase();
-                            bVal = b.user.toLowerCase();
-                            break;
-                        case 'sightings':
-                            aVal = a.sightings;
-                            bVal = b.sightings;
-                            break;
-                        case 'maintenance':
-                            aVal = a.maintenance;
-                            bVal = b.maintenance;
-                            break;
-                        case 'incidents':
-                            aVal = a.incidents;
-                            bVal = b.incidents;
-                            break;
-                        case 'total':
-                        default:
-                            aVal = a.total;
-                            bVal = b.total;
-                            break;
-                    }
-
-                    if (typeof aVal === 'string') {
-                        return currentSortDirection === 'desc' ?
-                            bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
-                    } else {
-                        return currentSortDirection === 'desc' ?
-                            bVal - aVal : aVal - bVal;
-                    }
-                });
-
-                console.log('User stats calculated:', userArray.length, 'users');
-
-                // Display the data
-                displayUserSubmissions(userArray);
-
-            } catch (error) {
-                console.error('Error loading user submissions:', error);
-                document.getElementById('loading').innerHTML = '<div style="color: red;">Error loading data. Please try again.</div>';
-            }
-        }
-
-        // Display user submissions in table
-        function displayUserSubmissions(userData) {
-            // Hide loading
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('submissions-table').style.display = 'table';
-
-            // Update stats
-            document.getElementById('total-users').textContent = userData.length;
-            const totalSubmissions = userData.reduce((sum, user) => sum + user.total, 0);
-            document.getElementById('total-submissions').textContent = totalSubmissions;
-
-            const tbody = document.getElementById('submissions-tbody');
-
-            if (userData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">No submissions found for the selected date range</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = userData.map(user => `
-                <tr>
-                    <td>${user.user}</td>
-                    <td>${user.sightings}</td>
-                    <td>${user.maintenance}</td>
-                    <td>${user.incidents}</td>
-                    <td class="total-column">${user.total}</td>
-                </tr>
-            `).join('');
-        }
-
-        // Show error message
-        function showError(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.style.cssText = `
-                position: fixed;
-                top: 100px;
-                right: 20px;
-                background: #e74c3c;
-                color: white;
-                padding: 15px 20px;
-                border-radius: 5px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-                z-index: 1000;
-                max-width: 300px;
-            `;
-            errorDiv.innerHTML = `<strong>Error:</strong> ${message}`;
-            document.body.appendChild(errorDiv);
-
-            setTimeout(() => {
-                if (errorDiv.parentNode) {
-                    errorDiv.parentNode.removeChild(errorDiv);
-                }
-            }, 5000);
-        }
-
-        // Initialize the page
-        async function initPage() {
-            try {
-                console.log('Initializing user submissions page...');
-                await loadObservations();
-                await loadUserSubmissions();
-                console.log('Page initialized successfully');
-            } catch (error) {
-                console.error('Error initializing page:', error);
-                showError('Failed to initialize page');
-            }
-        }
-
-        // Set up event listeners
-        document.getElementById('refresh-btn').addEventListener('click', loadUserSubmissions);
-        document.getElementById('start-date').addEventListener('change', loadUserSubmissions);
-        document.getElementById('end-date').addEventListener('change', loadUserSubmissions);
-        document.getElementById('month-select').addEventListener('change', loadUserSubmissions);
-        document.getElementById('year-select').addEventListener('change', loadUserSubmissions);
-
-        // Sorting functionality
-        let currentSortColumn = 'total';
-        let currentSortDirection = 'desc';
-
-        // User management table sorting
-        let userManagementSortColumn = 'total';
-        let userManagementSortDirection = 'desc';
+        // Sorting functionality for user management table
+        let userManagementSortColumn = 'name';
+        let userManagementSortDirection = 'asc';
 
         // Initialize admin page (API key authentication, no login required)
         function initAdmin() {
@@ -735,93 +484,10 @@
         }
 
 
-        // Calculate submission counts for users
-        async function calculateUserSubmissions(users) {
-            try {
-                // Filter observations to get all submissions (no date filtering for user management)
-                const userStats = {};
-
-                allObservations.forEach(obs => {
-                    const user = obs.user || 'Anonymous';
-                    if (!userStats[user]) {
-                        userStats[user] = {
-                            sightings: 0,
-                            maintenance: 0,
-                            incidents: 0,
-                            total: 0
-                        };
-                    }
-
-                    // Count by category
-                    if (obs.category === 'Sighting') {
-                        userStats[user].sightings++;
-                    } else if (obs.category === 'Maintenance') {
-                        userStats[user].maintenance++;
-                    } else if (obs.category === 'Incident') {
-                        userStats[user].incidents++;
-                    }
-
-                    userStats[user].total++;
-                });
-
-                // Add submission counts to users - try multiple matching strategies
-                return users.map(user => {
-                    // Try to find matching user stats by various identifiers
-                    let userKey = null;
-
-                    // First try exact matches
-                    if (userStats[user.name]) userKey = user.name;
-                    else if (userStats[user.email]) userKey = user.email;
-                    else if (userStats[user.phone]) userKey = user.phone;
-                    else if (userStats[user.uid]) userKey = user.uid;
-                    else if (userStats[user.id]) userKey = user.id;
-                    // Try partial matches for name/email
-                    else {
-                        for (const [key, stats] of Object.entries(userStats)) {
-                            if (user.name && key.toLowerCase().includes(user.name.toLowerCase())) {
-                                userKey = key;
-                                break;
-                            }
-                            if (user.email && key.toLowerCase().includes(user.email.split('@')[0].toLowerCase())) {
-                                userKey = key;
-                                break;
-                            }
-                        }
-                    }
-
-                    return {
-                        ...user,
-                        submissions: userKey ? userStats[userKey] : {
-                            sightings: 0,
-                            maintenance: 0,
-                            incidents: 0,
-                            total: 0
-                        }
-                    };
-                });
-            } catch (error) {
-                console.error('Error calculating user submissions:', error);
-                return users.map(user => ({
-                    ...user,
-                    submissions: {
-                        sightings: 0,
-                        maintenance: 0,
-                        incidents: 0,
-                        total: 0
-                    }
-                }));
-            }
-        }
 
         // Load user management data
         async function loadUserManagementData() {
             try {
-                // Ensure observations are loaded first
-                if (!allObservations || allObservations.length === 0) {
-                    console.log('Loading observations for user management...');
-                    await loadObservations();
-                }
-
                 const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
                     headers: getAdminAuthHeaders()
                 });
@@ -829,11 +495,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Calculate submission counts for each user
-                    const usersWithSubmissions = await calculateUserSubmissions(data.users);
-
                     // Sort users based on current settings
-                    const sortedUsers = sortUsers(usersWithSubmissions);
+                    const sortedUsers = sortUsers(data.users);
 
                     displayUserManagement(sortedUsers);
                     updateAdminStats(data.stats);
@@ -855,14 +518,10 @@
                     <td>${user.email || user.phone || 'N/A'}</td>
                     <td><span class="status ${user.status}">${user.status}</span></td>
                     <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
-                    <td class="total-column">${user.submissions.total}</td>
-                    <td>${user.submissions.sightings}</td>
-                    <td>${user.submissions.incidents}</td>
-                    <td>${user.submissions.maintenance}</td>
                     <td>
                         ${user.status === 'active' ?
-                            `<button class="btn danger" onclick="revokeUser('${user.id}')">Revoke</button>` :
-                            `<button class="btn success" onclick="activateUser('${user.id}')">Activate</button>`
+                            `<button class="btn danger" onclick="revokeUser('${user.uid}')">Revoke</button>` :
+                            `<button class="btn success" onclick="restoreUser('${user.uid}')">Restore</button>`
                         }
                     </td>
                 </tr>
@@ -891,7 +550,7 @@
 
                 if (data.success) {
                     loadUserManagementData();
-                    showAlert('dashboard-alert', 'User revoked successfully', 'success');
+                    showAlert('dashboard-alert', 'User access revoked', 'success');
                 } else {
                     showAlert('dashboard-alert', data.message || 'Failed to revoke user', 'danger');
                 }
@@ -902,7 +561,7 @@
         }
 
         // Activate user
-        async function activateUser(userId) {
+        async function restoreUser(userId) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
                     method: 'PATCH',
@@ -914,13 +573,13 @@
 
                 if (data.success) {
                     loadUserManagementData();
-                    showAlert('dashboard-alert', 'User activated successfully', 'success');
+                    showAlert('dashboard-alert', 'User access restored', 'success');
                 } else {
-                    showAlert('dashboard-alert', data.message || 'Failed to activate user', 'danger');
+                    showAlert('dashboard-alert', data.message || 'Failed to restore user', 'danger');
                 }
             } catch (error) {
-                console.error('Error activating user:', error);
-                showAlert('dashboard-alert', 'Failed to activate user', 'danger');
+                console.error('Error restoring user:', error);
+                showAlert('dashboard-alert', 'Failed to restore user', 'danger');
             }
         }
 
@@ -935,55 +594,10 @@
             }, 5000);
         }
 
-        // Tab switching
-        function showTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('.admin-tab').forEach(tab => {
-                tab.classList.add('hidden');
-            });
 
-            // Remove active class from all buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
 
-            // Show selected tab
-            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
-
-            // Add active class to clicked button
-            event.target.classList.add('active');
-        }
-
-        // Column sorting for submissions table
-        document.querySelectorAll('#submissions-table th.sortable').forEach(header => {
-            header.addEventListener('click', function() {
-                const sortBy = this.dataset.sort;
-
-                // Toggle sort direction if same column, otherwise set to desc
-                if (currentSortColumn === sortBy) {
-                    currentSortDirection = currentSortDirection === 'desc' ? 'asc' : 'desc';
-                } else {
-                    currentSortColumn = sortBy;
-                    currentSortDirection = 'desc';
-                }
-
-                // Update sort indicators
-                document.querySelectorAll('#submissions-table th.sortable').forEach(th => {
-                    th.classList.remove('sorted');
-                    const indicator = th.querySelector('.sort-indicator');
-                    if (indicator) indicator.textContent = '';
-                });
-
-                this.classList.add('sorted');
-                const indicator = this.querySelector('.sort-indicator');
-                if (indicator) {
-                    indicator.textContent = currentSortDirection === 'desc' ? '↓' : '↑';
-                }
-
-                // Re-sort and display data
-                sortAndDisplaySubmissions();
-            });
-        });
+        // Set up event listeners
+        document.getElementById('refresh-btn').addEventListener('click', loadUserManagementData);
 
         // Column sorting for user management table
         document.querySelectorAll('#users-table th.sortable').forEach(header => {
@@ -1038,25 +652,9 @@
                         aVal = a.lastLogin ? new Date(a.lastLogin).getTime() : 0;
                         bVal = b.lastLogin ? new Date(b.lastLogin).getTime() : 0;
                         break;
-                    case 'total':
-                        aVal = a.submissions.total;
-                        bVal = b.submissions.total;
-                        break;
-                    case 'sightings':
-                        aVal = a.submissions.sightings;
-                        bVal = b.submissions.sightings;
-                        break;
-                    case 'incidents':
-                        aVal = a.submissions.incidents;
-                        bVal = b.submissions.incidents;
-                        break;
-                    case 'maintenance':
-                        aVal = a.submissions.maintenance;
-                        bVal = b.submissions.maintenance;
-                        break;
                     default:
-                        aVal = a.submissions.total;
-                        bVal = b.submissions.total;
+                        aVal = (a.name || 'N/A').toLowerCase();
+                        bVal = (b.name || 'N/A').toLowerCase();
                         break;
                 }
 
@@ -1078,101 +676,6 @@
         }
 
         // Sort and display submissions
-        function sortAndDisplaySubmissions() {
-            // Get current data (assuming it's already loaded)
-            const filteredObservations = allObservations.filter(obs => {
-                const startDate = document.getElementById('start-date').value;
-                const endDate = document.getElementById('end-date').value;
-                const selectedMonth = document.getElementById('month-select').value;
-                const selectedYear = document.getElementById('year-select').value;
-
-                // Date range filter
-                if (startDate || endDate) {
-                    const obsDate = new Date(obs.timestamp);
-                    if (startDate && obsDate < new Date(startDate)) return false;
-                    if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
-                }
-
-                // Month/Year filter
-                if (selectedMonth || selectedYear) {
-                    const obsDate = new Date(obs.timestamp);
-                    if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
-                    if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
-                }
-
-                return true;
-            });
-
-            // Aggregate data by user
-            const userStats = {};
-
-            filteredObservations.forEach(obs => {
-                const user = obs.user || 'Anonymous';
-                if (!userStats[user]) {
-                    userStats[user] = {
-                        user: user,
-                        sightings: 0,
-                        maintenance: 0,
-                        incidents: 0,
-                        total: 0
-                    };
-                }
-
-                // Count by category
-                if (obs.category === 'Sighting') {
-                    userStats[user].sightings++;
-                } else if (obs.category === 'Maintenance') {
-                    userStats[user].maintenance++;
-                } else if (obs.category === 'Incident') {
-                    userStats[user].incidents++;
-                }
-
-                userStats[user].total++;
-            });
-
-            // Convert to array and sort
-            let userArray = Object.values(userStats);
-
-            // Sort by current column and direction
-            userArray.sort((a, b) => {
-                let aVal, bVal;
-
-                switch (currentSortColumn) {
-                    case 'user':
-                        aVal = a.user.toLowerCase();
-                        bVal = b.user.toLowerCase();
-                        break;
-                    case 'sightings':
-                        aVal = a.sightings;
-                        bVal = b.sightings;
-                        break;
-                    case 'maintenance':
-                        aVal = a.maintenance;
-                        bVal = b.maintenance;
-                        break;
-                    case 'incidents':
-                        aVal = a.incidents;
-                        bVal = b.incidents;
-                        break;
-                    case 'total':
-                    default:
-                        aVal = a.total;
-                        bVal = b.total;
-                        break;
-                }
-
-                if (typeof aVal === 'string') {
-                    return currentSortDirection === 'desc' ?
-                        bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
-                } else {
-                    return currentSortDirection === 'desc' ?
-                        bVal - aVal : aVal - bVal;
-                }
-            });
-
-            // Display the sorted data
-            displayUserSubmissions(userArray);
-        }
 
         // Start the page
         initAdmin();
