@@ -531,13 +531,14 @@
                 className: 'simple-marker',
                 html: `<div style="
                     background-color: ${color};
-                    width: 8px;
-                    height: 8px;
+                    width: 12px;
+                    height: 12px;
                     border-radius: 50%;
-                    border: 1px solid #000;
+                    border: 2px solid #ffffff;
+                    box-shadow: 0 0 4px rgba(0,0,0,0.5);
                 "></div>`,
-                iconSize: [8, 8],
-                iconAnchor: [4, 4]
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
             });
         };
 
@@ -1365,6 +1366,36 @@
                     }
                 });
                 console.log('Added', markersAdded, 'markers to observations layer');
+                console.log('Observations layer has', observationsLayer.getLayers().length, 'layers');
+
+                // Add a test marker to ensure markers work
+                if (markersAdded === 0) {
+                    console.log('No markers added, adding a test marker');
+                    const testMarker = L.marker([-19.1, 23.5], {
+                        icon: L.divIcon({
+                            className: 'test-marker',
+                            html: `<div style="background: red; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>`,
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(observationsLayer).bindPopup('Test Marker');
+                    console.log('Test marker added');
+                }
+
+                // Check if map is showing the markers
+                setTimeout(() => {
+                    console.log('Map bounds:', map.getBounds());
+                    const layerBounds = observationsLayer.getBounds();
+                    console.log('Observations layer bounds:', layerBounds);
+                    console.log('Map center:', map.getCenter());
+                    console.log('Map zoom:', map.getZoom());
+
+                    // If we have markers but they're not visible, try to fit bounds
+                    if ((markersAdded > 0 || observationsLayer.getLayers().length > 0) && layerBounds.isValid()) {
+                        console.log('Fitting map to show markers');
+                        map.fitBounds(layerBounds, { padding: [20, 20], maxZoom: 15 });
+                    }
+                }, 500);
             }
 
             // Apply latest toggles
@@ -1879,21 +1910,27 @@
 
                     if (currentView === 'user-submissions') {
                         // Completely hide map container, show table in its place
-                        if (mapView) mapView.style.display = 'none';
-                        if (tableView) tableView.style.display = 'block';
+                        if (mapView) {
+                            mapView.classList.add('hidden');
+                        }
+                        if (tableView) {
+                            tableView.classList.add('visible');
+                        }
                         // Sync table dropdown
                         if (viewModeSelectTable) viewModeSelectTable.value = currentView;
                         loadUserSubmissions();
                     } else {
                         // Show map container, hide table
                         if (mapView) {
-                            mapView.style.display = 'flex';
+                            mapView.classList.remove('hidden');
                             // Ensure map is properly sized after being hidden
                             setTimeout(() => {
                                 map.invalidateSize();
                             }, 100);
                         }
-                        if (tableView) tableView.style.display = 'none';
+                        if (tableView) {
+                            tableView.classList.remove('visible');
+                        }
                         // Sync map dropdown
                         if (viewModeSelect) viewModeSelect.value = currentView;
 
