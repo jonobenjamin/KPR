@@ -725,35 +725,35 @@
             document.getElementById('admin-dashboard').classList.remove('hidden');
         }
 
-        // Login functionality
+        // Login functionality - TEMPORARY HARDCODED CREDENTIALS
         document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ username, password })
-                });
+            // Temporary hardcoded credentials until backend API is set up
+            if (username === 'jono' && password === 'password') {
+                // Simulate successful login
+                currentUser = {
+                    id: 1,
+                    username: 'jono',
+                    name: 'Admin User',
+                    role: 'admin'
+                };
 
-                const data = await response.json();
+                // Create a fake token that expires in 24 hours
+                const expiry = new Date().getTime() + (24 * 60 * 60 * 1000); // 24 hours from now
+                const fakeToken = 'temp_admin_token_' + Date.now();
 
-                if (data.success) {
-                    currentUser = data.user;
-                    localStorage.setItem('admin_token', data.token);
-                    localStorage.setItem('admin_token_expiry', data.expiry);
-                    localStorage.setItem('admin_user', JSON.stringify(data.user));
-                    showDashboard();
-                    loadUserManagementData();
-                } else {
-                    showAlert('login-alert', data.message || 'Login failed', 'danger');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                showAlert('login-alert', 'Network error. Please try again.', 'danger');
+                localStorage.setItem('admin_token', fakeToken);
+                localStorage.setItem('admin_token_expiry', expiry.toString());
+                localStorage.setItem('admin_user', JSON.stringify(currentUser));
+
+                showDashboard();
+                loadUserManagementData();
+            } else {
+                showAlert('login-alert', 'Invalid username or password', 'danger');
             }
         });
 
@@ -766,24 +766,42 @@
             showLogin();
         }
 
-        // Load user management data
+        // Load user management data - TEMPORARY MOCK DATA
         async function loadUserManagementData() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                // Temporary mock data until backend API is set up
+                const mockUsers = [
+                    {
+                        id: 1,
+                        name: 'John Smith',
+                        email: 'john@example.com',
+                        status: 'active',
+                        lastLogin: new Date().toISOString()
+                    },
+                    {
+                        id: 2,
+                        name: 'Jane Doe',
+                        email: 'jane@example.com',
+                        status: 'active',
+                        lastLogin: new Date(Date.now() - 86400000).toISOString() // 1 day ago
+                    },
+                    {
+                        id: 3,
+                        name: 'Bob Johnson',
+                        phone: '+1234567890',
+                        status: 'revoked',
+                        lastLogin: new Date(Date.now() - 604800000).toISOString() // 1 week ago
                     }
-                });
+                ];
 
-                const data = await response.json();
+                const mockStats = {
+                    total: 3,
+                    active: 2,
+                    revoked: 1
+                };
 
-                if (data.success) {
-                    displayUserManagement(data.users);
-                    updateAdminStats(data.stats);
-                } else {
-                    showAlert('dashboard-alert', data.message || 'Failed to load user data', 'danger');
-                }
+                displayUserManagement(mockUsers);
+                updateAdminStats(mockStats);
             } catch (error) {
                 console.error('Error loading user management data:', error);
                 showAlert('dashboard-alert', 'Failed to load user data', 'danger');
@@ -816,52 +834,30 @@
             document.getElementById('admin-revoked-users').textContent = stats.revoked || 0;
         }
 
-        // Revoke user
+        // Revoke user - TEMPORARY MOCK FUNCTION
         async function revokeUser(userId) {
             if (!confirm('Are you sure you want to revoke this user?')) return;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/revoke`, {
-                    method: 'POST',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    loadUserManagementData();
-                    showAlert('dashboard-alert', 'User revoked successfully', 'success');
-                } else {
-                    showAlert('dashboard-alert', data.message || 'Failed to revoke user', 'danger');
-                }
+                // Temporary mock function - just show success message
+                // In a real implementation, this would call the API
+                showAlert('dashboard-alert', 'User revoked successfully (mock)', 'success');
+                // Reload data to show updated status (would be handled by API in real implementation)
+                setTimeout(() => loadUserManagementData(), 1000);
             } catch (error) {
                 console.error('Error revoking user:', error);
                 showAlert('dashboard-alert', 'Failed to revoke user', 'danger');
             }
         }
 
-        // Activate user
+        // Activate user - TEMPORARY MOCK FUNCTION
         async function activateUser(userId) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/activate`, {
-                    method: 'POST',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    loadUserManagementData();
-                    showAlert('dashboard-alert', 'User activated successfully', 'success');
-                } else {
-                    showAlert('dashboard-alert', data.message || 'Failed to activate user', 'danger');
-                }
+                // Temporary mock function - just show success message
+                // In a real implementation, this would call the API
+                showAlert('dashboard-alert', 'User activated successfully (mock)', 'success');
+                // Reload data to show updated status (would be handled by API in real implementation)
+                setTimeout(() => loadUserManagementData(), 1000);
             } catch (error) {
                 console.error('Error activating user:', error);
                 showAlert('dashboard-alert', 'Failed to activate user', 'danger');
