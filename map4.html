@@ -23,7 +23,7 @@
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
-            <a href="admin.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+            <a href="user-submissions2.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
                 🔐 Admin Panel
             </a>
             <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
@@ -1267,8 +1267,10 @@
                 }
             });
 
-            // Update fire count
+            // Update fire count and label
             document.getElementById('fires-count').textContent = filteredFires.length;
+            const fireLabelElement = document.querySelector('#fires-group .stats-display .stat-label');
+            fireLabelElement.textContent = 'Global Fires';
 
             // Show fire legend
             showFiresLegend();
