@@ -357,15 +357,14 @@
                 <table id="users-table">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Email/Phone</th>
-                            <th>Status</th>
-                            <th>Registered</th>
-                            <th>Last Login</th>
-                            <th>Sightings</th>
-                            <th>Maintenance</th>
-                            <th>Incidents</th>
-                            <th>Total Submissions</th>
+                            <th data-sort="name" class="sortable">Name <span class="sort-indicator"></span></th>
+                            <th data-sort="contact" class="sortable">Email/Phone <span class="sort-indicator"></span></th>
+                            <th data-sort="status" class="sortable">Status <span class="sort-indicator"></span></th>
+                            <th data-sort="lastLogin" class="sortable">Last Login <span class="sort-indicator"></span></th>
+                            <th data-sort="total" class="sortable sorted">Total Submissions <span class="sort-indicator">↓</span></th>
+                            <th data-sort="sightings" class="sortable">Sightings <span class="sort-indicator"></span></th>
+                            <th data-sort="incidents" class="sortable">Incidents <span class="sort-indicator"></span></th>
+                            <th data-sort="maintenance" class="sortable">Maintenance <span class="sort-indicator"></span></th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -704,6 +703,10 @@
         let currentSortColumn = 'total';
         let currentSortDirection = 'desc';
 
+        // User management table sorting
+        let userManagementSortColumn = 'total';
+        let userManagementSortDirection = 'desc';
+
         // Check if user is logged in
         function checkAuth() {
             const token = localStorage.getItem('admin_token');
@@ -730,35 +733,35 @@
             document.getElementById('admin-dashboard').classList.remove('hidden');
         }
 
-        // Login functionality - TEMPORARY HARDCODED CREDENTIALS
+        // Login functionality
         document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            // Temporary hardcoded credentials until backend API is set up
-            if (username === 'jono' && password === 'password') {
-                // Simulate successful login
-                currentUser = {
-                    id: 1,
-                    username: 'jono',
-                    name: 'Admin User',
-                    role: 'admin'
-                };
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ username, password })
+                });
 
-                // Create a fake token that expires in 24 hours
-                const expiry = new Date().getTime() + (24 * 60 * 60 * 1000); // 24 hours from now
-                const fakeToken = 'temp_admin_token_' + Date.now();
+                const data = await response.json();
 
-                localStorage.setItem('admin_token', fakeToken);
-                localStorage.setItem('admin_token_expiry', expiry.toString());
-                localStorage.setItem('admin_user', JSON.stringify(currentUser));
-
-                showDashboard();
-                loadUserManagementData();
-            } else {
-                showAlert('login-alert', 'Invalid username or password', 'danger');
+                if (data.success) {
+                    currentUser = data.user;
+                    localStorage.setItem('admin_token', data.token);
+                    localStorage.setItem('admin_token_expiry', data.expiry);
+                    localStorage.setItem('admin_user', JSON.stringify(data.user));
+                    showDashboard();
+                    loadUserManagementData();
+                } else {
+                    showAlert('login-alert', data.message || 'Login failed', 'danger');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert('login-alert', 'Network error. Please try again.', 'danger');
             }
         });
 
@@ -771,29 +774,16 @@
             showLogin();
         }
 
-        // Load user management data - REAL FIREBASE DATA
-        async function loadUserManagementData() {
+        // Calculate submission counts for users
+        async function calculateUserSubmissions(users) {
             try {
-                // First ensure we have observation data
-                if (allObservations.length === 0) {
-                    await loadObservations();
-                }
-
-                // Aggregate user statistics from Firebase data
+                // Filter observations to get all submissions (no date filtering for user management)
                 const userStats = {};
 
                 allObservations.forEach(obs => {
-                    const userKey = obs.user || 'Anonymous';
-
-                    if (!userStats[userKey]) {
-                        userStats[userKey] = {
-                            id: userKey,
-                            name: userKey === 'Anonymous' ? 'Anonymous User' : userKey,
-                            email: obs.user_email || '',
-                            phone: obs.user_phone || '',
-                            status: 'active', // Default to active for now
-                            registered: obs.timestamp, // Use first observation as registration date
-                            lastLogin: obs.timestamp, // Use latest observation as last login
+                    const user = obs.user || 'Anonymous';
+                    if (!userStats[user]) {
+                        userStats[user] = {
                             sightings: 0,
                             maintenance: 0,
                             incidents: 0,
@@ -801,37 +791,66 @@
                         };
                     }
 
-                    // Update last login if this observation is more recent
-                    if (new Date(obs.timestamp) > new Date(userStats[userKey].lastLogin)) {
-                        userStats[userKey].lastLogin = obs.timestamp;
-                    }
-
                     // Count by category
                     if (obs.category === 'Sighting') {
-                        userStats[userKey].sightings++;
+                        userStats[user].sightings++;
                     } else if (obs.category === 'Maintenance') {
-                        userStats[userKey].maintenance++;
+                        userStats[user].maintenance++;
                     } else if (obs.category === 'Incident') {
-                        userStats[userKey].incidents++;
+                        userStats[user].incidents++;
                     }
 
-                    userStats[userKey].total++;
+                    userStats[user].total++;
                 });
 
-                // Convert to array and sort by total submissions (descending)
-                const usersArray = Object.values(userStats);
-                usersArray.sort((a, b) => b.total - a.total);
+                // Add submission counts to users
+                return users.map(user => ({
+                    ...user,
+                    submissions: userStats[user.name || user.email || user.phone || 'Anonymous'] || {
+                        sightings: 0,
+                        maintenance: 0,
+                        incidents: 0,
+                        total: 0
+                    }
+                }));
+            } catch (error) {
+                console.error('Error calculating user submissions:', error);
+                return users.map(user => ({
+                    ...user,
+                    submissions: {
+                        sightings: 0,
+                        maintenance: 0,
+                        incidents: 0,
+                        total: 0
+                    }
+                }));
+            }
+        }
 
-                // Calculate stats
-                const stats = {
-                    total: usersArray.length,
-                    active: usersArray.filter(u => u.status === 'active').length,
-                    revoked: usersArray.filter(u => u.status === 'revoked').length
-                };
+        // Load user management data
+        async function loadUserManagementData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
 
-                displayUserManagement(usersArray);
-                updateAdminStats(stats);
+                const data = await response.json();
 
+                if (data.success) {
+                    // Calculate submission counts for each user
+                    const usersWithSubmissions = await calculateUserSubmissions(data.users);
+
+                    // Sort users based on current settings
+                    const sortedUsers = sortUsers(usersWithSubmissions);
+
+                    displayUserManagement(sortedUsers);
+                    updateAdminStats(data.stats);
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to load user data', 'danger');
+                }
             } catch (error) {
                 console.error('Error loading user management data:', error);
                 showAlert('dashboard-alert', 'Failed to load user data', 'danger');
@@ -846,12 +865,11 @@
                     <td>${user.name || 'N/A'}</td>
                     <td>${user.email || user.phone || 'N/A'}</td>
                     <td><span class="status ${user.status}">${user.status}</span></td>
-                    <td>${user.registered ? new Date(user.registered).toLocaleDateString() : 'N/A'}</td>
                     <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
-                    <td>${user.sightings || 0}</td>
-                    <td>${user.maintenance || 0}</td>
-                    <td>${user.incidents || 0}</td>
-                    <td class="total-column">${user.total || 0}</td>
+                    <td class="total-column">${user.submissions.total}</td>
+                    <td>${user.submissions.sightings}</td>
+                    <td>${user.submissions.incidents}</td>
+                    <td>${user.submissions.maintenance}</td>
                     <td>
                         ${user.status === 'active' ?
                             `<button class="btn danger" onclick="revokeUser('${user.id}')">Revoke</button>` :
@@ -869,34 +887,52 @@
             document.getElementById('admin-revoked-users').textContent = stats.revoked || 0;
         }
 
-        // Revoke user - UPDATE LOCAL DATA
+        // Revoke user
         async function revokeUser(userId) {
             if (!confirm('Are you sure you want to revoke this user?')) return;
 
             try {
-                // For now, just show success message
-                // In a real implementation, this would call the backend API
-                showAlert('dashboard-alert', 'User access revoked (local change only)', 'success');
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/revoke`, {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
 
-                // In a full implementation, you'd update the user's status in the database
-                // For now, we'll just reload the data which will reflect any local changes
-                setTimeout(() => loadUserManagementData(), 1000);
+                const data = await response.json();
+
+                if (data.success) {
+                    loadUserManagementData();
+                    showAlert('dashboard-alert', 'User revoked successfully', 'success');
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to revoke user', 'danger');
+                }
             } catch (error) {
                 console.error('Error revoking user:', error);
                 showAlert('dashboard-alert', 'Failed to revoke user', 'danger');
             }
         }
 
-        // Activate user - UPDATE LOCAL DATA
+        // Activate user
         async function activateUser(userId) {
             try {
-                // For now, just show success message
-                // In a real implementation, this would call the backend API
-                showAlert('dashboard-alert', 'User access restored (local change only)', 'success');
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/activate`, {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
 
-                // In a full implementation, you'd update the user's status in the database
-                // For now, we'll just reload the data
-                setTimeout(() => loadUserManagementData(), 1000);
+                const data = await response.json();
+
+                if (data.success) {
+                    loadUserManagementData();
+                    showAlert('dashboard-alert', 'User activated successfully', 'success');
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to activate user', 'danger');
+                }
             } catch (error) {
                 console.error('Error activating user:', error);
                 showAlert('dashboard-alert', 'Failed to activate user', 'danger');
@@ -963,6 +999,98 @@
                 sortAndDisplaySubmissions();
             });
         });
+
+        // Column sorting for user management table
+        document.querySelectorAll('#users-table th.sortable').forEach(header => {
+            header.addEventListener('click', function() {
+                const sortBy = this.dataset.sort;
+
+                // Toggle sort direction if same column, otherwise set to desc
+                if (userManagementSortColumn === sortBy) {
+                    userManagementSortDirection = userManagementSortDirection === 'desc' ? 'asc' : 'desc';
+                } else {
+                    userManagementSortColumn = sortBy;
+                    userManagementSortDirection = 'desc';
+                }
+
+                // Update sort indicators
+                document.querySelectorAll('#users-table th.sortable').forEach(th => {
+                    th.classList.remove('sorted');
+                    const indicator = th.querySelector('.sort-indicator');
+                    if (indicator) indicator.textContent = '';
+                });
+
+                this.classList.add('sorted');
+                const indicator = this.querySelector('.sort-indicator');
+                if (indicator) {
+                    indicator.textContent = userManagementSortDirection === 'desc' ? '↓' : '↑';
+                }
+
+                // Re-sort and display data
+                sortAndDisplayUserManagement();
+            });
+        });
+
+        // Sort users array based on current settings
+        function sortUsers(users) {
+            return users.sort((a, b) => {
+                let aVal, bVal;
+
+                switch (userManagementSortColumn) {
+                    case 'name':
+                        aVal = (a.name || 'N/A').toLowerCase();
+                        bVal = (b.name || 'N/A').toLowerCase();
+                        break;
+                    case 'contact':
+                        aVal = (a.email || a.phone || 'N/A').toLowerCase();
+                        bVal = (b.email || b.phone || 'N/A').toLowerCase();
+                        break;
+                    case 'status':
+                        aVal = a.status.toLowerCase();
+                        bVal = b.status.toLowerCase();
+                        break;
+                    case 'lastLogin':
+                        aVal = a.lastLogin ? new Date(a.lastLogin).getTime() : 0;
+                        bVal = b.lastLogin ? new Date(b.lastLogin).getTime() : 0;
+                        break;
+                    case 'total':
+                        aVal = a.submissions.total;
+                        bVal = b.submissions.total;
+                        break;
+                    case 'sightings':
+                        aVal = a.submissions.sightings;
+                        bVal = b.submissions.sightings;
+                        break;
+                    case 'incidents':
+                        aVal = a.submissions.incidents;
+                        bVal = b.submissions.incidents;
+                        break;
+                    case 'maintenance':
+                        aVal = a.submissions.maintenance;
+                        bVal = b.submissions.maintenance;
+                        break;
+                    default:
+                        aVal = a.submissions.total;
+                        bVal = b.submissions.total;
+                        break;
+                }
+
+                if (typeof aVal === 'string') {
+                    return userManagementSortDirection === 'desc' ?
+                        bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+                } else {
+                    return userManagementSortDirection === 'desc' ?
+                        bVal - aVal : aVal - bVal;
+                }
+            });
+        }
+
+        // Sort and display user management data
+        function sortAndDisplayUserManagement() {
+            // Get current user data (assuming it's already loaded)
+            // This function should be called after users data is loaded
+            loadUserManagementData();
+        }
 
         // Sort and display submissions
         function sortAndDisplaySubmissions() {
