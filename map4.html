@@ -428,6 +428,7 @@
 
 
     <script>
+        console.log('Script loaded, starting map initialization');
         // Simple Wildlife Tracker Map
         // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
 
@@ -785,6 +786,7 @@
         // Load observations
         async function loadObservations() {
             try {
+                console.log('Loading observations from API...');
                 const response = await fetch(`${API_BASE_URL}/api/observations`, {
                     headers: getAuthHeaders()
                 });
@@ -801,66 +803,7 @@
 
                 if (data.success && data.data) {
                     allObservations = data.data; // Store all observations
-
-
-
-                    data.data.forEach(observation => {
-                        if (observation.latitude && observation.longitude) {
-                            let icon, popupContent;
-
-                            switch (observation.category) {
-                                case 'Sighting':
-                                    // Use species-specific color for sightings
-                                    const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
-                                    const speciesColor = speciesColors[animalName] || '#8B4513';
-                                    icon = createCustomIcon(speciesColor);
-                                    popupContent = `
-                                        <strong>Animal Sighting</strong><br>
-                                        <strong>Species:</strong> ${observation.animal || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
-                                    break;
-                                case 'Incident':
-                                    icon = incidentIcon;
-                                    popupContent = `
-                                        <strong>Incident Report</strong><br>
-                                        <strong>Type:</strong> ${observation.incident_type || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
-                                    break;
-                                case 'Maintenance':
-                                    icon = maintenanceIcon;
-                                    popupContent = `
-                                        <strong>Maintenance Activity</strong><br>
-                                        <strong>Type:</strong> ${observation.maintenance_type || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
-                                    break;
-                                default:
-                                    icon = sightingIcon;
-                                    popupContent = `
-                                        <strong>Observation</strong><br>
-                                        <strong>Category:</strong> ${observation.category}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
-                            }
-
-                            const marker = L.marker([observation.latitude, observation.longitude], { icon })
-                                .bindPopup(popupContent);
-
-                            // Add marker to map layer
-                            marker.addTo(observationsLayer);
-
-                            // Store marker by type for filtering
-                            if (markersByType[observation.category]) {
-                                markersByType[observation.category].push(marker);
-                            }
-                        }
-                    });
+                    console.log('allObservations set with', allObservations.length, 'observations');
 
                     // Apply current filters and view
                     applyFilters();
@@ -870,6 +813,8 @@
                     if (currentView === 'sightings' && displayMode === 'actual') {
                         showSpeciesLegend();
                     }
+                } else {
+                    console.log('No data received from API');
                 }
 
             } catch (error) {
@@ -881,6 +826,7 @@
         // Initialize map data loading
         async function initMap() {
             try {
+                console.log('initMap called');
                 await Promise.all([
                     loadBoundary(),
                     loadRoads(),
@@ -1662,6 +1608,7 @@
         // Load and display user submissions data
         async function loadUserSubmissions() {
             try {
+                console.log('loadUserSubmissions called, allObservations length:', allObservations.length);
 
                 // Get date filters
                 const startDate = document.getElementById('table-start-date').value;
