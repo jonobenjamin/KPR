@@ -36,6 +36,24 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
+            width: 100%;
+        }
+
+        #users-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        #users-table th,
+        #users-table td {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        #users-table th:last-child,
+        #users-table td:last-child {
+            width: 120px;
+            min-width: 120px;
         }
 
         .table-controls {
@@ -863,9 +881,10 @@
             if (!confirm('Are you sure you want to revoke this user?')) return;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/revoke`, {
-                    method: 'POST',
-                    headers: getAdminAuthHeaders()
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
+                    method: 'PATCH',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify({ status: 'revoked' })
                 });
 
                 const data = await response.json();
@@ -885,9 +904,10 @@
         // Activate user
         async function activateUser(userId) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/activate`, {
-                    method: 'POST',
-                    headers: getAdminAuthHeaders()
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
+                    method: 'PATCH',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify({ status: 'active' })
                 });
 
                 const data = await response.json();
