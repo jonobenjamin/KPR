@@ -306,6 +306,9 @@
     <div id="login-screen" class="table-page">
         <div class="login-form">
             <h2>Admin Login</h2>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 14px; color: #6c757d;">
+                Test credentials: username: <strong>admin</strong>, password: <strong>admin123</strong>
+            </div>
             <div id="login-alert"></div>
             <form id="login-form">
                 <div class="form-group">
@@ -803,16 +806,41 @@
                     userStats[user].total++;
                 });
 
-                // Add submission counts to users
-                return users.map(user => ({
-                    ...user,
-                    submissions: userStats[user.name || user.email || user.phone || 'Anonymous'] || {
-                        sightings: 0,
-                        maintenance: 0,
-                        incidents: 0,
-                        total: 0
+                // Add submission counts to users - try multiple matching strategies
+                return users.map(user => {
+                    // Try to find matching user stats by various identifiers
+                    let userKey = null;
+
+                    // First try exact matches
+                    if (userStats[user.name]) userKey = user.name;
+                    else if (userStats[user.email]) userKey = user.email;
+                    else if (userStats[user.phone]) userKey = user.phone;
+                    else if (userStats[user.uid]) userKey = user.uid;
+                    else if (userStats[user.id]) userKey = user.id;
+                    // Try partial matches for name/email
+                    else {
+                        for (const [key, stats] of Object.entries(userStats)) {
+                            if (user.name && key.toLowerCase().includes(user.name.toLowerCase())) {
+                                userKey = key;
+                                break;
+                            }
+                            if (user.email && key.toLowerCase().includes(user.email.split('@')[0].toLowerCase())) {
+                                userKey = key;
+                                break;
+                            }
+                        }
                     }
-                }));
+
+                    return {
+                        ...user,
+                        submissions: userKey ? userStats[userKey] : {
+                            sightings: 0,
+                            maintenance: 0,
+                            incidents: 0,
+                            total: 0
+                        }
+                    };
+                });
             } catch (error) {
                 console.error('Error calculating user submissions:', error);
                 return users.map(user => ({
@@ -830,6 +858,12 @@
         // Load user management data
         async function loadUserManagementData() {
             try {
+                // Ensure observations are loaded first
+                if (!allObservations || allObservations.length === 0) {
+                    console.log('Loading observations for user management...');
+                    await loadObservations();
+                }
+
                 const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
                     headers: {
                         ...getAuthHeaders(),
