@@ -456,18 +456,13 @@ input:checked + .slider:before {
 /* Table View Styles */
 .table-view {
     display: none;
-    position: absolute;
+    position: fixed;
     top: 80px;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: 50px;
     background: #f8f9fa;
-    z-index: 50;
-}
-
-.table-view.visible {
-    display: flex !important;
-    height: calc(100vh - 80px);
+    z-index: 10000;
 }
 
 .main-content {
