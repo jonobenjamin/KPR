@@ -41,13 +41,14 @@
 
         #users-table {
             width: 100%;
-            table-layout: fixed;
+            table-layout: auto;
         }
 
         #users-table th,
         #users-table td {
             word-wrap: break-word;
             overflow-wrap: break-word;
+            padding: 8px 12px;
         }
 
         #users-table th:last-child,
@@ -408,10 +409,14 @@
             <table id="users-table">
                     <thead>
                         <tr>
-                            <th data-sort="name" class="sortable sorted">Name <span class="sort-indicator">↑</span></th>
+                            <th data-sort="name" class="sortable">Name <span class="sort-indicator"></span></th>
                             <th data-sort="contact" class="sortable">Email/Phone <span class="sort-indicator"></span></th>
                             <th data-sort="status" class="sortable">Status <span class="sort-indicator"></span></th>
                             <th data-sort="lastLogin" class="sortable">Last Login <span class="sort-indicator"></span></th>
+                            <th data-sort="sightings" class="sortable">No. Sightings <span class="sort-indicator"></span></th>
+                            <th data-sort="maintenance" class="sortable">No. Maintenance <span class="sort-indicator"></span></th>
+                            <th data-sort="incidents" class="sortable">No. Incidents <span class="sort-indicator"></span></th>
+                            <th data-sort="total" class="sortable sorted">Total Submissions <span class="sort-indicator">↓</span></th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -456,6 +461,33 @@
             };
         }
 
+        let allObservations = [];
+
+        // Load observations data
+        async function loadObservations() {
+            try {
+                console.log('Loading observations...');
+                const response = await fetch(`${API_BASE_URL}/api/observations`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) throw new Error(`Observations API returned ${response.status}`);
+
+                const data = await response.json();
+                console.log('Observations data loaded:', data.data ? data.data.length : 0, 'records');
+
+                if (data.success && data.data) {
+                    allObservations = data.data;
+                    console.log('Data loaded successfully');
+                } else {
+                    console.log('No data received');
+                }
+
+            } catch (error) {
+                console.error('Error loading observations:', error);
+                showError('Failed to load observation data');
+            }
+        }
+
         // Admin authentication function
         function getAdminAuthHeaders() {
             return {
@@ -464,17 +496,95 @@
             };
         }
 
+        // Calculate submission counts for users
+        async function calculateUserSubmissions(users) {
+            try {
+                // Filter observations to get all submissions (no date filtering for user management)
+                const userStats = {};
+
+                allObservations.forEach(obs => {
+                    const user = obs.user || 'Anonymous';
+                    if (!userStats[user]) {
+                        userStats[user] = {
+                            sightings: 0,
+                            maintenance: 0,
+                            incidents: 0,
+                            total: 0
+                        };
+                    }
+
+                    // Count by category
+                    if (obs.category === 'Sighting') {
+                        userStats[user].sightings++;
+                    } else if (obs.category === 'Maintenance') {
+                        userStats[user].maintenance++;
+                    } else if (obs.category === 'Incident') {
+                        userStats[user].incidents++;
+                    }
+
+                    userStats[user].total++;
+                });
+
+                // Add submission counts to users - try multiple matching strategies
+                return users.map(user => {
+                    // Try to find matching user stats by various identifiers
+                    let userKey = null;
+
+                    // First try exact matches
+                    if (userStats[user.name]) userKey = user.name;
+                    else if (userStats[user.email]) userKey = user.email;
+                    else if (userStats[user.phone]) userKey = user.phone;
+                    else if (userStats[user.uid]) userKey = user.uid;
+                    else if (userStats[user.id]) userKey = user.id;
+                    // Try partial matches for name/email
+                    else {
+                        for (const [key, stats] of Object.entries(userStats)) {
+                            if (user.name && key.toLowerCase().includes(user.name.toLowerCase())) {
+                                userKey = key;
+                                break;
+                            }
+                            if (user.email && key.toLowerCase().includes(user.email.split('@')[0].toLowerCase())) {
+                                userKey = key;
+                                break;
+                            }
+                        }
+                    }
+
+                    return {
+                        ...user,
+                        submissions: userKey ? userStats[userKey] : {
+                            sightings: 0,
+                            maintenance: 0,
+                            incidents: 0,
+                            total: 0
+                        }
+                    };
+                });
+            } catch (error) {
+                console.error('Error calculating user submissions:', error);
+                return users.map(user => ({
+                    ...user,
+                    submissions: {
+                        sightings: 0,
+                        maintenance: 0,
+                        incidents: 0,
+                        total: 0
+                    }
+                }));
+            }
+        }
+
 
         // Load and display user submissions data
 
         // Sorting functionality for user management table
-        let userManagementSortColumn = 'name';
-        let userManagementSortDirection = 'asc';
+        let userManagementSortColumn = 'total';
+        let userManagementSortDirection = 'desc';
 
         // Initialize admin page (API key authentication, no login required)
-        function initAdmin() {
+        async function initAdmin() {
             showDashboard();
-            loadUserManagementData();
+            await loadUserManagementData();
         }
 
         // Show admin dashboard
@@ -488,6 +598,12 @@
         // Load user management data
         async function loadUserManagementData() {
             try {
+                // Ensure observations are loaded first
+                if (!allObservations || allObservations.length === 0) {
+                    console.log('Loading observations for user management...');
+                    await loadObservations();
+                }
+
                 const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
                     headers: getAdminAuthHeaders()
                 });
@@ -495,8 +611,11 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    // Calculate submission counts for each user
+                    const usersWithSubmissions = await calculateUserSubmissions(data.users);
+
                     // Sort users based on current settings
-                    const sortedUsers = sortUsers(data.users);
+                    const sortedUsers = sortUsers(usersWithSubmissions);
 
                     displayUserManagement(sortedUsers);
                     updateAdminStats(data.stats);
@@ -518,6 +637,10 @@
                     <td>${user.email || user.phone || 'N/A'}</td>
                     <td><span class="status ${user.status}">${user.status}</span></td>
                     <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
+                    <td>${user.submissions.sightings}</td>
+                    <td>${user.submissions.maintenance}</td>
+                    <td>${user.submissions.incidents}</td>
+                    <td class="total-column">${user.submissions.total}</td>
                     <td>
                         ${user.status === 'active' ?
                             `<button class="btn danger" onclick="revokeUser('${user.uid}')">Revoke</button>` :
@@ -596,6 +719,31 @@
 
 
 
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 100px;
+                right: 20px;
+                background: #e74c3c;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 5px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 1000;
+                max-width: 300px;
+            `;
+            errorDiv.innerHTML = `<strong>Error:</strong> ${message}`;
+            document.body.appendChild(errorDiv);
+
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 5000);
+        }
+
         // Set up event listeners
         document.getElementById('refresh-btn').addEventListener('click', loadUserManagementData);
 
@@ -652,6 +800,22 @@
                         aVal = a.lastLogin ? new Date(a.lastLogin).getTime() : 0;
                         bVal = b.lastLogin ? new Date(b.lastLogin).getTime() : 0;
                         break;
+                    case 'sightings':
+                        aVal = a.submissions.sightings;
+                        bVal = b.submissions.sightings;
+                        break;
+                    case 'maintenance':
+                        aVal = a.submissions.maintenance;
+                        bVal = b.submissions.maintenance;
+                        break;
+                    case 'incidents':
+                        aVal = a.submissions.incidents;
+                        bVal = b.submissions.incidents;
+                        break;
+                    case 'total':
+                        aVal = a.submissions.total;
+                        bVal = b.submissions.total;
+                        break;
                     default:
                         aVal = (a.name || 'N/A').toLowerCase();
                         bVal = (b.name || 'N/A').toLowerCase();
@@ -678,7 +842,9 @@
         // Sort and display submissions
 
         // Start the page
-        initAdmin();
+        (async () => {
+            await initAdmin();
+        })();
     </script>
 </body>
 </html>
