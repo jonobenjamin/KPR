@@ -292,67 +292,11 @@
 
     <!-- User Submissions Table View -->
     <div id="table-view" class="table-view" style="display: none;">
-        <div class="table-container">
-            <h2>User Submissions Summary</h2>
-            <div class="table-controls">
-                <div class="date-filters">
-                    <div class="control-group">
-                        <h4>Date Range</h4>
-                        <div class="date-controls">
-                            <div class="date-control">
-                                <label for="table-start-date">Start Date</label>
-                                <input type="date" id="table-start-date">
-                            </div>
-                            <div class="date-control">
-                                <label for="table-end-date">End Date</label>
-                                <input type="date" id="table-end-date">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <h4>Month & Year</h4>
-                        <div class="date-controls">
-                            <div class="date-control">
-                                <label for="table-month-select">Month</label>
-                                <select id="table-month-select">
-                                    <option value="">All Months</option>
-                                    <option value="01">January</option>
-                                    <option value="02">February</option>
-                                    <option value="03">March</option>
-                                    <option value="04">April</option>
-                                    <option value="05">May</option>
-                                    <option value="06">June</option>
-                                    <option value="07">July</option>
-                                    <option value="08">August</option>
-                                    <option value="09">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
-                                </select>
-                            </div>
-                            <div class="date-control">
-                                <label for="table-year-select">Year</label>
-                                <select id="table-year-select">
-                                    <option value="" selected>All Years</option>
-                                    <option value="2020">2020</option>
-                                    <option value="2021">2021</option>
-                                    <option value="2022">2022</option>
-                                    <option value="2023">2023</option>
-                                    <option value="2024">2024</option>
-                                    <option value="2025">2025</option>
-                                    <option value="2026">2026</option>
-                                    <option value="2027">2027</option>
-                                    <option value="2028">2028</option>
-                                    <option value="2029">2029</option>
-                                    <option value="2030">2030</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <!-- Table Section (75% width) -->
+        <div class="table-section">
+            <div id="table-loading" class="loading">
+                <div>Loading user data...</div>
             </div>
-
             <div class="submissions-table-container">
                 <table id="submissions-table" class="submissions-table">
                     <thead>
@@ -372,6 +316,94 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Sidebar (40% width) -->
+        <div class="sidebar">
+            <h3>Filters & Controls</h3>
+
+            <!-- View Mode Dropdown - MOVED TO TOP -->
+            <div class="control-group">
+                <h4>View Mode</h4>
+                <select id="view-mode-select-table" class="view-select">
+                    <option value="sightings">Sightings</option>
+                    <option value="trees">Trees</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="incidents">Incidents</option>
+                    <option value="water-monitoring">Water Monitoring</option>
+                    <option value="user-submissions" selected>User Submissions</option>
+                </select>
+            </div>
+
+            <!-- Date Range Controls -->
+            <div class="control-group">
+                <h4>Date Range</h4>
+                <div class="date-controls">
+                    <div class="date-control">
+                        <label for="table-start-date">Start Date</label>
+                        <input type="date" id="table-start-date">
+                    </div>
+                    <div class="date-control">
+                        <label for="table-end-date">End Date</label>
+                        <input type="date" id="table-end-date">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Month/Year Selector -->
+            <div class="control-group">
+                <h4>Month & Year</h4>
+                <div class="date-controls">
+                    <div class="date-control">
+                        <label for="table-month-select">Month</label>
+                        <select id="table-month-select">
+                            <option value="">All Months</option>
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="date-control">
+                        <label for="table-year-select">Year</label>
+                        <select id="table-year-select">
+                            <option value="" selected>All Years</option>
+                            <option value="2020">2020</option>
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                            <option value="2029">2029</option>
+                            <option value="2030">2030</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Display -->
+            <div class="control-group">
+                <h4>Summary</h4>
+                <div class="stats-display">
+                    <span class="stat-number" id="table-total-users">0</span>
+                    <span class="stat-label">Total Users</span>
+                </div>
+                <div class="stats-display">
+                    <span class="stat-number" id="table-total-submissions">0</span>
+                    <span class="stat-label">Total Submissions</span>
+                </div>
             </div>
         </div>
     </div>
@@ -754,6 +786,11 @@
                 const data = await response.json();
                 console.log('Observations data loaded:', data);
                 console.log('Number of observations received:', data.data ? data.data.length : 0);
+
+                if (!data.success || !data.data) {
+                    console.error('Failed to load observations data');
+                    return;
+                }
 
                 if (data.success && data.data) {
                     allObservations = data.data; // Store all observations
@@ -1172,6 +1209,8 @@
         }
 
         function applyFilters() {
+            console.log('applyFilters called for view:', currentView, 'with', allObservations.length, 'observations');
+
             // Clear all markers and hotspot layers first
             observationsLayer.clearLayers();
             hotspotLayer.clearLayers();
@@ -1275,8 +1314,11 @@
                 }
             } else {
                 // Show individual markers (actual locations)
+                console.log('Showing actual markers for', filteredObservations.length, 'filtered observations');
+                let markersAdded = 0;
                 filteredObservations.forEach(observation => {
                     if (observation.latitude && observation.longitude) {
+                        markersAdded++;
                         let icon, popupContent;
 
                         switch (observation.category) {
@@ -1322,6 +1364,7 @@
                             marker.addTo(observationsLayer);
                     }
                 });
+                console.log('Added', markersAdded, 'markers to observations layer');
             }
 
             // Apply latest toggles
@@ -1693,6 +1736,15 @@
 
         // Display user submissions in table
         function displayUserSubmissions(userData) {
+            // Hide loading
+            const loading = document.getElementById('table-loading');
+            if (loading) loading.style.display = 'none';
+
+            // Update stats
+            document.getElementById('table-total-users').textContent = userData.length;
+            const totalSubmissions = userData.reduce((sum, user) => sum + user.total, 0);
+            document.getElementById('table-total-submissions').textContent = totalSubmissions;
+
             const tbody = document.getElementById('submissions-tbody');
 
             if (userData.length === 0) {
@@ -1787,21 +1839,24 @@
 
         // Set up all event listeners
         function setupFilters() {
-            // View mode dropdown
+            // View mode dropdowns (both map and table views)
             const viewModeSelect = document.getElementById('view-mode-select');
+            const viewModeSelectTable = document.getElementById('view-mode-select-table');
 
-            // Ensure user-submissions option exists
-            if (viewModeSelect) {
-                // Remove any existing user-submissions options first
-                const existingOptions = viewModeSelect.querySelectorAll('option[value="user-submissions"]');
-                existingOptions.forEach(opt => opt.remove());
+            // Ensure user-submissions option exists in both dropdowns
+            [viewModeSelect, viewModeSelectTable].forEach(select => {
+                if (select) {
+                    // Remove any existing user-submissions options first
+                    const existingOptions = select.querySelectorAll('option[value="user-submissions"]');
+                    existingOptions.forEach(opt => opt.remove());
 
-                // Add the option
-                const userSubmissionsOption = document.createElement('option');
-                userSubmissionsOption.value = 'user-submissions';
-                userSubmissionsOption.text = 'User Submissions';
-                viewModeSelect.appendChild(userSubmissionsOption);
-            }
+                    // Add the option
+                    const userSubmissionsOption = document.createElement('option');
+                    userSubmissionsOption.value = 'user-submissions';
+                    userSubmissionsOption.text = 'User Submissions';
+                    select.appendChild(userSubmissionsOption);
+                }
+            });
 
             viewModeSelect.addEventListener('change', function() {
                 currentView = this.value;
@@ -1826,6 +1881,8 @@
                         // Completely hide map container, show table in its place
                         if (mapView) mapView.style.display = 'none';
                         if (tableView) tableView.style.display = 'block';
+                        // Sync table dropdown
+                        if (viewModeSelectTable) viewModeSelectTable.value = currentView;
                         loadUserSubmissions();
                     } else {
                         // Show map container, hide table
@@ -1837,6 +1894,8 @@
                             }, 100);
                         }
                         if (tableView) tableView.style.display = 'none';
+                        // Sync map dropdown
+                        if (viewModeSelect) viewModeSelect.value = currentView;
 
                         // Reapply filters for the current view
                         if (currentView === 'sightings' || currentView === 'maintenance' || currentView === 'incidents' || currentView === 'water-monitoring') {
@@ -1983,6 +2042,13 @@
                     const sortBy = this.dataset.sort;
                     sortUserTable(sortBy);
                 });
+            });
+
+            // Table view dropdown
+            viewModeSelectTable.addEventListener('change', function() {
+                // Sync the main dropdown and trigger change
+                viewModeSelect.value = this.value;
+                viewModeSelect.dispatchEvent(new Event('change'));
             });
 
             // Table date filters
