@@ -298,29 +298,15 @@
             <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
                 Submit Data
             </a>
-            <button class="logout-btn" onclick="logout()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Logout</button>
+            <a href="map.html" class="logout-btn" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; text-decoration: none;">Back to Map</a>
         </div>
     </div>
 
-    <!-- Login Screen -->
-    <div id="login-screen" class="table-page">
+    <!-- Login Screen (hidden - using API key auth) -->
+    <div id="login-screen" class="table-page hidden">
         <div class="login-form">
-            <h2>Admin Login</h2>
-            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 14px; color: #6c757d;">
-                Test credentials: username: <strong>admin</strong>, password: <strong>admin123</strong>
-            </div>
-            <div id="login-alert"></div>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required>
-                </div>
-                <button type="submit" class="btn" id="login-btn">Login</button>
-            </form>
+            <h2>Admin Access</h2>
+            <p>Admin access granted via API key authentication.</p>
         </div>
     </div>
 
@@ -477,11 +463,20 @@
         // Configuration
         const API_BASE_URL = 'https://wildlife-tracker-gxz5.vercel.app';
         const API_KEY = '98394a83034f3db48e5acd3ef54bd622c5748ca5bb4fb3ff39c052319711c9a9';
+        const ADMIN_API_KEY = 'wildlife_admin_2024';
 
         // Simple authentication function
         function getAuthHeaders() {
             return {
                 'x-api-key': API_KEY,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        // Admin authentication function
+        function getAdminAuthHeaders() {
+            return {
+                'x-api-key': ADMIN_API_KEY,
                 'Content-Type': 'application/json'
             };
         }
@@ -701,8 +696,7 @@
         document.getElementById('month-select').addEventListener('change', loadUserSubmissions);
         document.getElementById('year-select').addEventListener('change', loadUserSubmissions);
 
-        // Admin functionality
-        let currentUser = null;
+        // Sorting functionality
         let currentSortColumn = 'total';
         let currentSortDirection = 'desc';
 
@@ -710,24 +704,10 @@
         let userManagementSortColumn = 'total';
         let userManagementSortDirection = 'desc';
 
-        // Check if user is logged in
-        function checkAuth() {
-            const token = localStorage.getItem('admin_token');
-            const expiry = localStorage.getItem('admin_token_expiry');
-
-            if (token && expiry && new Date().getTime() < parseInt(expiry)) {
-                currentUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
-                showDashboard();
-                loadUserManagementData();
-            } else {
-                showLogin();
-            }
-        }
-
-        // Show login screen
-        function showLogin() {
-            document.getElementById('login-screen').classList.remove('hidden');
-            document.getElementById('admin-dashboard').classList.add('hidden');
+        // Initialize admin page (API key authentication, no login required)
+        function initAdmin() {
+            showDashboard();
+            loadUserManagementData();
         }
 
         // Show admin dashboard
@@ -736,46 +716,6 @@
             document.getElementById('admin-dashboard').classList.remove('hidden');
         }
 
-        // Login functionality
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ username, password })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    currentUser = data.user;
-                    localStorage.setItem('admin_token', data.token);
-                    localStorage.setItem('admin_token_expiry', data.expiry);
-                    localStorage.setItem('admin_user', JSON.stringify(data.user));
-                    showDashboard();
-                    loadUserManagementData();
-                } else {
-                    showAlert('login-alert', data.message || 'Login failed', 'danger');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                showAlert('login-alert', 'Network error. Please try again.', 'danger');
-            }
-        });
-
-        // Logout functionality
-        function logout() {
-            localStorage.removeItem('admin_token');
-            localStorage.removeItem('admin_token_expiry');
-            localStorage.removeItem('admin_user');
-            currentUser = null;
-            showLogin();
-        }
 
         // Calculate submission counts for users
         async function calculateUserSubmissions(users) {
@@ -865,10 +805,7 @@
                 }
 
                 const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
+                    headers: getAdminAuthHeaders()
                 });
 
                 const data = await response.json();
@@ -928,10 +865,7 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/revoke`, {
                     method: 'POST',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
+                    headers: getAdminAuthHeaders()
                 });
 
                 const data = await response.json();
@@ -953,10 +887,7 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/activate`, {
                     method: 'POST',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
+                    headers: getAdminAuthHeaders()
                 });
 
                 const data = await response.json();
@@ -1224,7 +1155,7 @@
         }
 
         // Start the page
-        checkAuth();
+        initAdmin();
     </script>
 </body>
 </html>
