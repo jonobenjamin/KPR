@@ -19,38 +19,16 @@
     </style>
 </head>
 <body>
-    <!-- Login Screen (shown when not authenticated) -->
-    <div id="login-screen" style="display: none; min-height: 100vh; background: #f5f5f5; padding: 40px; box-sizing: border-box;">
-        <div style="max-width: 400px; margin: 80px auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="margin: 0 0 24px 0; color: #2c3e50;">Concession Map - Login</h2>
-            <div id="map-login-alert" style="margin-bottom: 15px;"></div>
-            <form id="map-login-form">
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 500;">Username / Email</label>
-                    <input type="text" id="map-login-username" required style="width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 6px; font-size: 16px;">
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 500;">Password</label>
-                    <input type="password" id="map-login-password" required style="width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 6px; font-size: 16px;">
-                </div>
-                <button type="submit" style="width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">Login</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Main Content (shown when authenticated) -->
-    <div id="map-main-content" style="display: none;">
     <!-- Top Ribbon -->
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
-            <a id="admin-panel-link" href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: none;">
-                🔐 Admin Panel
+            <a href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+                Admin Panel
             </a>
             <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn">
                 Submit Data
             </a>
-            <button id="map-logout-btn" onclick="portalLogout()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Logout</button>
         </div>
     </div>
 
@@ -358,7 +336,6 @@
         <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
     </div>
     </div>
-    <!-- End map-main-content -->
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -372,51 +349,8 @@
     <!-- Chart.js for water monitoring graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Portal Auth -->
-    <script src="auth.js"></script>
-
     <script>
-        // Portal auth - protect map page
-        function portalLogout() {
-            if (typeof clearAuth === 'function') clearAuth();
-            window.location.reload();
-        }
-
-        function initMapAuth() {
-            const user = typeof getStoredUser === 'function' ? getStoredUser() : null;
-            const loginScreen = document.getElementById('login-screen');
-            const mainContent = document.getElementById('map-main-content');
-            const adminLink = document.getElementById('admin-panel-link');
-
-            if (!user) {
-                loginScreen.style.display = 'block';
-                mainContent.style.display = 'none';
-                return false;
-            }
-
-            loginScreen.style.display = 'none';
-            mainContent.style.display = 'block';
-            if (user.role === 'admin' && adminLink) adminLink.style.display = 'inline-block';
-            return user;
-        }
-
-        const currentPortalUser = initMapAuth();
-
-        document.getElementById('map-login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const username = document.getElementById('map-login-username').value;
-            const password = document.getElementById('map-login-password').value;
-            const result = await login(username, password);
-            const alertEl = document.getElementById('map-login-alert');
-            if (result.success) {
-                alertEl.innerHTML = '';
-                window.location.reload();
-            } else {
-                alertEl.innerHTML = '<div style="color: #e74c3c; padding: 8px; background: #f8d7da; border-radius: 4px;">' + (result.message || 'Invalid credentials') + '</div>';
-            }
-        });
-
-        // Simple Wildlife Tracker Map - only runs when authenticated (currentPortalUser set above)
+        // Simple Wildlife Tracker Map
         // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
 
         // Configuration
@@ -777,11 +711,7 @@
                 console.log('Number of observations received:', data.data ? data.data.length : 0);
 
                 if (data.success && data.data) {
-                    // User/viewer: only sightings and maintenance. Admin: all
-                    const canSeeAll = currentPortalUser && currentPortalUser.role === 'admin';
-                    allObservations = canSeeAll
-                        ? data.data
-                        : data.data.filter(o => o.category === 'Sighting' || o.category === 'Maintenance');
+                    allObservations = data.data;
                     console.log('Sample observations:', allObservations.slice(0, 3).map(obs => ({
                         category: obs.category,
                         timestamp: obs.timestamp,
@@ -1870,20 +1800,6 @@
 
         // Set up all event listeners
         function setupFilters() {
-            // For user/viewer: remove admin-only view options (trees, incidents, water, fires)
-            const isAdmin = currentPortalUser && currentPortalUser.role === 'admin';
-            if (!isAdmin) {
-                const vmSelect = document.getElementById('view-mode-select');
-                ['trees', 'incidents', 'water-monitoring', 'fires'].forEach(val => {
-                    const opt = vmSelect.querySelector(`option[value="${val}"]`);
-                    if (opt) opt.remove();
-                });
-                // Hide groups that user/viewer can't access
-                document.getElementById('incidents-group').style.display = 'none';
-                document.getElementById('water-monitoring-group').style.display = 'none';
-                document.getElementById('fires-group').style.display = 'none';
-            }
-
             // View mode dropdown
             document.getElementById('view-mode-select').addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
@@ -2027,11 +1943,8 @@
         }
 
 
-        // Start the map (only when authenticated)
-        if (currentPortalUser) {
-            initMap();
-            setupFilters();
-        }
+        initMap();
+        setupFilters();
 
     </script>
 </body>
