@@ -19,12 +19,39 @@
     </style>
 </head>
 <body>
+    <!-- Login Screen (shown when not authenticated) -->
+    <div id="login-screen" style="display: none; min-height: 100vh; background: #f5f5f5; padding: 40px; box-sizing: border-box;">
+        <div style="max-width: 400px; margin: 80px auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="margin: 0 0 24px 0; color: #2c3e50;">Concession Map - Login</h2>
+            <div id="map-login-alert" style="margin-bottom: 15px;"></div>
+            <form id="map-login-form">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 500;">Username / Email</label>
+                    <input type="text" id="map-login-username" required style="width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 6px; font-size: 16px;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 500;">Password</label>
+                    <input type="password" id="map-login-password" required style="width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 6px; font-size: 16px;">
+                </div>
+                <button type="submit" style="width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Content (shown when authenticated) -->
+    <div id="map-main-content" style="display: none;">
     <!-- Top Ribbon -->
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
-        <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
-            Submit Data
-        </a>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <a id="admin-panel-link" href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: none;">
+                🔐 Admin Panel
+            </a>
+            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn">
+                Submit Data
+            </a>
+            <button id="map-logout-btn" onclick="portalLogout()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Logout</button>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -50,6 +77,7 @@
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
                     <option value="water-monitoring">Water Monitoring</option>
+                    <option value="fires">Fires</option>
                 </select>
             </div>
 
@@ -286,6 +314,42 @@
                     <button id="submit-water-data" class="btn-submit">Submit Water Data</button>
                 </div>
             </div>
+
+            <!-- Fire Data Controls -->
+            <div class="control-group" id="fires-group" style="display: none;">
+                <h4>Fire Data</h4>
+
+                <!-- Sensor Type Filter -->
+                <div class="form-group">
+                    <label for="fire-sensor-select">Sensor Type</label>
+                    <select id="fire-sensor-select" class="view-select">
+                        <option value="">All Sensors</option>
+                        <option value="VIIRS">VIIRS</option>
+                        <option value="MODIS">MODIS</option>
+                    </select>
+                </div>
+
+                <!-- Days Back Filter -->
+                <div class="form-group">
+                    <label for="fire-days-select">Days Back</label>
+                    <select id="fire-days-select" class="view-select">
+                        <option value="1">1 Day</option>
+                        <option value="3" selected>3 Days</option>
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                        <option value="30">30 Days</option>
+                    </select>
+                </div>
+
+                <!-- Stats Display -->
+                <div class="stats-display">
+                    <span class="stat-number" id="fires-count">0</span>
+                    <span class="stat-label">Total Fires</span>
+                </div>
+
+                <!-- Refresh Button -->
+                <button id="refresh-fires" class="btn-submit" style="width: 100%; margin-top: 10px;">Refresh Fire Data</button>
+            </div>
         </div>
     </div>
 
@@ -293,6 +357,8 @@
     <div class="bottom-ribbon">
         <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
     </div>
+    </div>
+    <!-- End map-main-content -->
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -306,10 +372,51 @@
     <!-- Chart.js for water monitoring graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-
+    <!-- Portal Auth -->
+    <script src="auth.js"></script>
 
     <script>
-        // Simple Wildlife Tracker Map
+        // Portal auth - protect map page
+        function portalLogout() {
+            if (typeof clearAuth === 'function') clearAuth();
+            window.location.reload();
+        }
+
+        function initMapAuth() {
+            const user = typeof getStoredUser === 'function' ? getStoredUser() : null;
+            const loginScreen = document.getElementById('login-screen');
+            const mainContent = document.getElementById('map-main-content');
+            const adminLink = document.getElementById('admin-panel-link');
+
+            if (!user) {
+                loginScreen.style.display = 'block';
+                mainContent.style.display = 'none';
+                return false;
+            }
+
+            loginScreen.style.display = 'none';
+            mainContent.style.display = 'block';
+            if (user.role === 'admin' && adminLink) adminLink.style.display = 'inline-block';
+            return user;
+        }
+
+        const currentPortalUser = initMapAuth();
+
+        document.getElementById('map-login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('map-login-username').value;
+            const password = document.getElementById('map-login-password').value;
+            const result = await login(username, password);
+            const alertEl = document.getElementById('map-login-alert');
+            if (result.success) {
+                alertEl.innerHTML = '';
+                window.location.reload();
+            } else {
+                alertEl.innerHTML = '<div style="color: #e74c3c; padding: 8px; background: #f8d7da; border-radius: 4px;">' + (result.message || 'Invalid credentials') + '</div>';
+            }
+        });
+
+        // Simple Wildlife Tracker Map - only runs when authenticated (currentPortalUser set above)
         // Loads local GeoJSON for boundaries/roads, fetches Firebase observations
 
         // Configuration
@@ -339,6 +446,7 @@
         const campsLayer = L.layerGroup().addTo(map);
         const treesLayer = L.layerGroup().addTo(map);
         const observationsLayer = L.layerGroup().addTo(map);
+        const firesLayer = L.layerGroup().addTo(map);
 
         // Store markers by type for filtering
         const markersByType = {
@@ -378,6 +486,10 @@
         let allObservations = [];
         let latestMarkers = [];
         let speciesLegend = null;
+
+        // Fire data state
+        let allFires = [];
+        let fireMarkers = [];
 
         // Water monitoring locations
         const waterMonitoringLocations = {
@@ -665,8 +777,12 @@
                 console.log('Number of observations received:', data.data ? data.data.length : 0);
 
                 if (data.success && data.data) {
-                    allObservations = data.data; // Store all observations
-                    console.log('Sample observations:', data.data.slice(0, 3).map(obs => ({
+                    // User/viewer: only sightings and maintenance. Admin: all
+                    const canSeeAll = currentPortalUser && currentPortalUser.role === 'admin';
+                    allObservations = canSeeAll
+                        ? data.data
+                        : data.data.filter(o => o.category === 'Sighting' || o.category === 'Maintenance');
+                    console.log('Sample observations:', allObservations.slice(0, 3).map(obs => ({
                         category: obs.category,
                         timestamp: obs.timestamp,
                         animal: obs.animal,
@@ -675,11 +791,11 @@
                     })));
 
                     // Log unique animal names for debugging
-                    const uniqueAnimals = [...new Set(data.data.filter(obs => obs.category === 'Sighting').map(obs => obs.animal).filter(Boolean))];
+                    const uniqueAnimals = [...new Set(allObservations.filter(obs => obs.category === 'Sighting').map(obs => obs.animal).filter(Boolean))];
                     console.log('Unique animal names in data:', uniqueAnimals);
 
 
-                    data.data.forEach(observation => {
+                    allObservations.forEach(observation => {
                         if (observation.latitude && observation.longitude) {
                             let icon, popupContent;
 
@@ -857,6 +973,38 @@
         }
 
         function hideTreesLegend() {
+            hideSpeciesLegend(); // Reuse the same function since they use the same variable
+        }
+
+        function showFiresLegend() {
+            // Remove existing legend
+            if (speciesLegend) {
+                map.removeControl(speciesLegend);
+            }
+
+            // Create new legend
+            speciesLegend = L.control({ position: 'topright' });
+
+            speciesLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'species-legend');
+                div.innerHTML = `
+                    <h4>Fire Sensors</h4>
+                    <div class="species-item">
+                        <div class="species-dot" style="background-color: red; width: 12px; height: 12px; border-radius: 50%;"></div>
+                        <span class="species-name">VIIRS (High Resolution)</span>
+                    </div>
+                    <div class="species-item">
+                        <div class="species-dot" style="background-color: orange; width: 10px; height: 10px; border-radius: 50%;"></div>
+                        <span class="species-name">MODIS (Moderate Resolution)</span>
+                    </div>
+                `;
+                return div;
+            };
+
+            speciesLegend.addTo(map);
+        }
+
+        function hideFiresLegend() {
             hideSpeciesLegend(); // Reuse the same function since they use the same variable
         }
 
@@ -1085,6 +1233,124 @@
             clearLatestMarkers();
             hideSpeciesLegend();
         }
+
+        function clearFireMarkers() {
+            // Clear all fire markers
+            firesLayer.clearLayers();
+            fireMarkers = [];
+            // Hide fire legend when clearing markers
+            hideFiresLegend();
+        }
+
+        // Fetch fire data from API
+        async function loadFires() {
+            try {
+                console.log('Loading fire data...');
+                const days = document.getElementById('fire-days-select').value || '3';
+                const response = await fetch(`${API_BASE_URL}/api/fires?country=USA&days=${days}`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) throw new Error(`Fires API returned ${response.status}`);
+
+                const data = await response.json();
+                console.log('Fire data loaded:', data);
+
+                if (data && data.features) {
+                    allFires = data.features;
+                    console.log('Fire data loaded successfully, count:', allFires.length);
+                    displayFires();
+                } else {
+                    allFires = [];
+                    showError('No fire data available');
+                }
+
+            } catch (error) {
+                console.error('Error loading fire data:', error);
+                showError('Failed to load fire data. Check your connection and try again.');
+                allFires = [];
+            }
+        }
+
+        // Display fire markers
+        function displayFires() {
+            // Clear existing fire markers
+            clearFireMarkers();
+
+            const selectedSensor = document.getElementById('fire-sensor-select').value;
+
+            // Filter fires by sensor type only (show all Africa fires)
+            const filteredFires = allFires.filter(fire => {
+                // Check sensor type
+                if (selectedSensor && fire.properties && fire.properties.sensor !== selectedSensor) {
+                    return false;
+                }
+
+                // Include all fires with valid coordinates
+                return fire.geometry && fire.geometry.coordinates;
+            });
+
+            console.log('Displaying', filteredFires.length, 'fires from', allFires.length, 'total');
+
+            filteredFires.forEach(fire => {
+                if (fire.geometry && fire.geometry.coordinates) {
+                    const coords = fire.geometry.coordinates;
+                    const properties = fire.properties || {};
+
+                    // Create marker based on sensor type
+                    let marker;
+                    if (properties.sensor === "VIIRS") {
+                        marker = L.circleMarker([coords[1], coords[0]], {
+                            radius: 6,
+                            color: "red",
+                            fillColor: "red",
+                            fillOpacity: 0.8,
+                            weight: 2
+                        });
+                    } else {
+                        // MODIS
+                        marker = L.circleMarker([coords[1], coords[0]], {
+                            radius: 5,
+                            color: "orange",
+                            fillColor: "orange",
+                            fillOpacity: 0.7,
+                            weight: 2
+                        });
+                    }
+
+                    // Create popup content
+                    const popupContent = `
+                        <strong>${properties.sensor || 'Unknown'} Fire Detection</strong><br>
+                        <strong>Confidence:</strong> ${properties.confidence || 'N/A'}%<br>
+                        <strong>FRP:</strong> ${properties.frp || 'N/A'} MW<br>
+                        <strong>Brightness:</strong> ${properties.brightness || 'N/A'} K<br>
+                        <strong>Time:</strong> ${properties.acq_time ? formatAcqTime(properties.acq_time) : 'N/A'}<br>
+                        <strong>Date:</strong> ${properties.acq_date || 'N/A'}<br>
+                        <small>Lat: ${coords[1].toFixed(4)}, Lng: ${coords[0].toFixed(4)}</small>
+                    `;
+
+                    marker.bindPopup(popupContent);
+                    marker.addTo(firesLayer);
+                    fireMarkers.push(marker);
+                }
+            });
+
+            // Update fire count and label
+            document.getElementById('fires-count').textContent = filteredFires.length;
+            const fireLabelElement = document.querySelector('#fires-group .stats-display .stat-label');
+            fireLabelElement.textContent = 'Global Fires';
+
+            // Show fire legend
+            showFiresLegend();
+        }
+
+        // Format acquisition time (HHMM format to HH:MM)
+        function formatAcqTime(acqTime) {
+            if (!acqTime || typeof acqTime !== 'string') return 'N/A';
+            const timeStr = acqTime.toString().padStart(4, '0');
+            return `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`;
+        }
+
 
         function applyFilters() {
             // Clear all markers first
@@ -1604,8 +1870,31 @@
 
         // Set up all event listeners
         function setupFilters() {
+            // For user/viewer: remove admin-only view options (trees, incidents, water, fires)
+            const isAdmin = currentPortalUser && currentPortalUser.role === 'admin';
+            if (!isAdmin) {
+                const vmSelect = document.getElementById('view-mode-select');
+                ['trees', 'incidents', 'water-monitoring', 'fires'].forEach(val => {
+                    const opt = vmSelect.querySelector(`option[value="${val}"]`);
+                    if (opt) opt.remove();
+                });
+                // Hide groups that user/viewer can't access
+                document.getElementById('incidents-group').style.display = 'none';
+                document.getElementById('water-monitoring-group').style.display = 'none';
+                document.getElementById('fires-group').style.display = 'none';
+            }
+
             // View mode dropdown
             document.getElementById('view-mode-select').addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const url = selectedOption.getAttribute('data-url');
+
+                if (url) {
+                    // Navigate to the specified URL
+                    window.location.href = url;
+                    return;
+                }
+
                 currentView = this.value;
 
                     // Show/hide appropriate controls
@@ -1619,6 +1908,8 @@
                         currentView === 'incidents' ? 'block' : 'none';
                     // Water monitoring group stays visible to allow switching back
                     document.getElementById('water-monitoring-group').style.display = 'block';
+                    document.getElementById('fires-group').style.display =
+                        currentView === 'fires' ? 'block' : 'none';
 
                     // Show/hide date controls for water monitoring
                     const allControlGroups = document.querySelectorAll('.control-group');
@@ -1638,9 +1929,12 @@
                         showSpeciesLegend();
                     } else if (currentView === 'trees') {
                         // Trees legend is handled in displayTrees()
+                    } else if (currentView === 'fires') {
+                        showFiresLegend();
                     } else {
                         hideSpeciesLegend();
                     }
+
 
                     // Show water monitoring markers only when water monitoring view is selected
                     if (currentView === 'water-monitoring') {
@@ -1650,14 +1944,25 @@
                     } else if (currentView === 'trees') {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
+                        clearFireMarkers();
                         displayTrees();
+                    } else if (currentView === 'fires') {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                        // Load fire data if not already loaded
+                        if (allFires.length === 0) {
+                            loadFires();
+                        } else {
+                            displayFires();
+                        }
                     } else {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
+                        clearFireMarkers();
+                        // Reapply filters for map views
+                        applyFilters();
                     }
-
-                    // Reapply filters
-                    applyFilters();
             });
 
             // Display mode switch (Hotspots/Actual)
@@ -1711,11 +2016,22 @@
 
             // Water monitoring submit button
             document.getElementById('submit-water-data').addEventListener('click', submitWaterMonitoringData);
+
+            // Fire controls
+            document.getElementById('fire-sensor-select').addEventListener('change', displayFires);
+            document.getElementById('fire-days-select').addEventListener('change', () => {
+                // Reload fire data when days change
+                loadFires();
+            });
+            document.getElementById('refresh-fires').addEventListener('click', loadFires);
         }
 
-        // Start the map
-        initMap();
-        setupFilters();
+
+        // Start the map (only when authenticated)
+        if (currentPortalUser) {
+            initMap();
+            setupFilters();
+        }
 
     </script>
 </body>
