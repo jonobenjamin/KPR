@@ -36,25 +36,6 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
-            width: 100%;
-        }
-
-        #users-table {
-            width: 100%;
-            table-layout: auto;
-        }
-
-        #users-table th,
-        #users-table td {
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            padding: 8px 12px;
-        }
-
-        #users-table th:last-child,
-        #users-table td:last-child {
-            width: 120px;
-            min-width: 120px;
         }
 
         .table-controls {
@@ -305,58 +286,59 @@
             opacity: 1;
         }
 
-        .status {
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .role-select {
             padding: 4px 8px;
             border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+
+        #edit-user-modal {
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #edit-user-modal.show {
+            display: flex !important;
         }
 
         .status.active {
             background: #d4edda;
             color: #155724;
+            padding: 4px 8px;
+            border-radius: 4px;
         }
 
         .status.revoked {
             background: #f8d7da;
             color: #721c24;
-        }
-
-        /* Status cell background colors */
-        td:has(.status.active) {
-            background: #d4edda !important;
-        }
-
-        td:has(.status.revoked) {
-            background: #f8d7da !important;
+            padding: 4px 8px;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
     <!-- Top Ribbon -->
-    <div class="top-ribbon">
+    <div id="user-submissions-ribbon" class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard - Admin Panel</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
-            <a href="map4.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
-                Concession Map
+            <a href="map.html" class="submit-data-btn" style="background: #3498db; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+                🗺️ Concession Map
             </a>
-            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn" style="background: #3498db; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn">
                 Submit Data
             </a>
         </div>
     </div>
 
-    <!-- Login Screen (hidden - using API key auth) -->
-    <div id="login-screen" class="table-page hidden">
-        <div class="login-form">
-            <h2>Admin Access</h2>
-            <p>Admin access granted via API key authentication.</p>
-        </div>
-    </div>
-
     <!-- Admin Dashboard -->
-    <div id="admin-dashboard" class="hidden table-page">
+    <div id="admin-dashboard" class="table-page">
         <div class="table-header">
             <h2>Admin Dashboard</h2>
         </div>
@@ -379,70 +361,58 @@
             </div>
         </div>
 
-        <!-- Date Filters -->
-        <div class="table-controls" style="margin-bottom: 20px;">
-            <div class="table-filters">
-                <div class="date-controls">
-                    <div class="date-control">
-                        <label for="start-date">Start Date</label>
-                        <input type="date" id="start-date">
-                    </div>
-                    <div class="date-control">
-                        <label for="end-date">End Date</label>
-                        <input type="date" id="end-date">
-                    </div>
-                    <div class="date-control">
-                        <label for="month-select">Month</label>
-                        <select id="month-select">
-                            <option value="">All Months</option>
-                            <option value="01">January</option>
-                            <option value="02">February</option>
-                            <option value="03">March</option>
-                            <option value="04">April</option>
-                            <option value="05">May</option>
-                            <option value="06">June</option>
-                            <option value="07">July</option>
-                            <option value="08">August</option>
-                            <option value="09">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                        </select>
-                    </div>
-                    <div class="date-control">
-                        <label for="year-select">Year</label>
-                        <select id="year-select">
-                            <option value="" selected>All Years</option>
-                            <option value="2020">2020</option>
-                            <option value="2021">2021</option>
-                            <option value="2022">2022</option>
-                            <option value="2023">2023</option>
-                            <option value="2024">2024</option>
-                            <option value="2025">2025</option>
-                            <option value="2026">2026</option>
-                            <option value="2027">2027</option>
-                            <option value="2028">2028</option>
-                            <option value="2029">2029</option>
-                            <option value="2030">2030</option>
-                        </select>
-                    </div>
-                    <button id="refresh-btn" class="btn-primary">Refresh Data</button>
+        <!-- Create User Section -->
+        <div class="create-user-section" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+            <h3 style="margin: 0 0 15px 0; color: #2c3e50;">Create New User</h3>
+            <form id="create-user-form" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="form-group" style="margin: 0; min-width: 150px;">
+                    <label for="new-user-name">Name</label>
+                    <input type="text" id="new-user-name" required placeholder="Full name">
                 </div>
-            </div>
+                <div class="form-group" style="margin: 0; min-width: 180px;">
+                    <label for="new-user-email">Email or Phone</label>
+                    <input type="text" id="new-user-email" required placeholder="user@example.com or +1234567890">
+                </div>
+                <div class="form-group" style="margin: 0; min-width: 150px;">
+                    <label for="new-user-password">Password <span style="color: #999; font-size: 11px;">(optional)</span></label>
+                    <input type="password" id="new-user-password" minlength="6" placeholder="Optional - for admin access">
+                </div>
+                <div class="form-group" style="margin: 0; min-width: 120px;">
+                    <label for="new-user-role">Role</label>
+                    <select id="new-user-role">
+                        <option value="admin">Admin</option>
+                        <option value="user" selected>User</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Create User</button>
+            </form>
+            <div id="create-user-alert" style="margin-top: 10px;"></div>
         </div>
 
-        <div class="table-container">
-            <table id="users-table">
+        <!-- Tabs for different admin sections -->
+        <div class="admin-tabs" style="margin-bottom: 20px;">
+            <button class="tab-btn active" onclick="showTab('users')">User Management</button>
+            <button class="tab-btn" onclick="showTab('submissions')">User Submissions</button>
+        </div>
+
+        <!-- User Management Tab -->
+        <div id="users-tab" class="admin-tab">
+            <div class="table-container">
+                <table id="users-table">
                     <thead>
                         <tr>
-                            <th data-sort="name" class="sortable">Name <span class="sort-indicator"></span></th>
-                            <th data-sort="contact" class="sortable">Email/Phone <span class="sort-indicator"></span></th>
-                            <th data-sort="status" class="sortable">Status <span class="sort-indicator"></span></th>
-                            <th data-sort="lastLogin" class="sortable">Last Login <span class="sort-indicator"></span></th>
-                            <th data-sort="sightings" class="sortable">No. Sightings <span class="sort-indicator"></span></th>
-                            <th data-sort="maintenance" class="sortable">No. Maintenance <span class="sort-indicator"></span></th>
-                            <th data-sort="incidents" class="sortable">No. Incidents <span class="sort-indicator"></span></th>
-                            <th data-sort="total" class="sortable sorted">Total Submissions <span class="sort-indicator">↓</span></th>
+                            <th>Name</th>
+                            <th>Email/Phone</th>
+                            <th>Role</th>
+                            <th>Password</th>
+                            <th>Status</th>
+                            <th>Registered</th>
+                            <th>Last Login</th>
+                            <th>Sightings</th>
+                            <th>Maintenance</th>
+                            <th>Incidents</th>
+                            <th>Total Submissions</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -452,11 +422,130 @@
                 </table>
             </div>
         </div>
+
+        <!-- User Submissions Tab -->
+        <div id="submissions-tab" class="admin-tab hidden">
+            <div class="table-header">
+                <h2>User Submissions Report</h2>
+            </div>
+
+        <div class="table-container">
+            <div class="table-controls">
+                <div class="table-filters">
+                    <div class="date-controls">
+                        <div class="date-control">
+                            <label for="start-date">Start Date</label>
+                            <input type="date" id="start-date">
+                        </div>
+                        <div class="date-control">
+                            <label for="end-date">End Date</label>
+                            <input type="date" id="end-date">
+                        </div>
+                        <div class="date-control">
+                            <label for="month-select">Month</label>
+                            <select id="month-select">
+                                <option value="">All Months</option>
+                                <option value="01">January</option>
+                                <option value="02">February</option>
+                                <option value="03">March</option>
+                                <option value="04">April</option>
+                                <option value="05">May</option>
+                                <option value="06">June</option>
+                                <option value="07">July</option>
+                                <option value="08">August</option>
+                                <option value="09">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <div class="date-control">
+                            <label for="year-select">Year</label>
+                            <select id="year-select">
+                                <option value="" selected>All Years</option>
+                                <option value="2020">2020</option>
+                                <option value="2021">2021</option>
+                                <option value="2022">2022</option>
+                                <option value="2023">2023</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                            </select>
+                        </div>
+                        <button id="refresh-btn" class="btn-primary">Refresh Data</button>
+                    </div>
+                </div>
+
+                <div class="table-stats">
+                    <div class="stat-box">
+                        <span class="stat-number" id="total-users">0</span>
+                        <span class="stat-label">Total Users</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number" id="total-submissions">0</span>
+                        <span class="stat-label">Total Submissions</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" class="loading">
+                <div>Loading user submissions data...</div>
+            </div>
+
+                <table id="submissions-table" class="submissions-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th data-sort="user" class="sortable">User <span class="sort-indicator"></span></th>
+                            <th data-sort="sightings" class="sortable">No. Sightings <span class="sort-indicator"></span></th>
+                            <th data-sort="maintenance" class="sortable">No. Maintenance <span class="sort-indicator"></span></th>
+                            <th data-sort="incidents" class="sortable">No. Incidents <span class="sort-indicator"></span></th>
+                            <th data-sort="total" class="sortable sorted">Total Submissions <span class="sort-indicator">↓</span></th>
+                        </tr>
+                    </thead>
+                <tbody id="submissions-tbody">
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" class="modal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="background: white; padding: 30px; border-radius: 8px; max-width: 400px; width: 90%;">
+            <h3 style="margin: 0 0 20px 0;">Edit User</h3>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id">
+                <div class="form-group">
+                    <label for="edit-user-name">Name</label>
+                    <input type="text" id="edit-user-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-user-role">Role</label>
+                    <select id="edit-user-role">
+                        <option value="admin">Admin</option>
+                        <option value="user">User</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-user-password">New Password <span style="color: #999; font-size: 12px;">(leave blank to keep current)</span></label>
+                    <input type="password" id="edit-user-password" minlength="6" placeholder="Min 6 characters">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn">Save Changes</button>
+                    <button type="button" class="btn" style="background: #95a5a6;" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Bottom Ribbon -->
     <div class="bottom-ribbon">
-        <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">Fieldwork Africa / @Jonathan Benjamin</a></p>
+        <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
     </div>
 
     <script>
@@ -469,6 +558,14 @@
         function getAuthHeaders() {
             return {
                 'x-api-key': API_KEY,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        // Admin API authentication
+        function getAdminAuthHeaders() {
+            return {
+                'x-api-key': ADMIN_API_KEY,
                 'Content-Type': 'application/json'
             };
         }
@@ -500,24 +597,50 @@
             }
         }
 
-        // Admin authentication function
-        function getAdminAuthHeaders() {
-            return {
-                'x-api-key': ADMIN_API_KEY,
-                'Content-Type': 'application/json'
-            };
-        }
-
-        // Calculate submission counts for users
-        async function calculateUserSubmissions(users) {
+        // Load and display user submissions data
+        async function loadUserSubmissions() {
             try {
-                // Filter observations to get all submissions (no date filtering for user management)
+                console.log('Loading user submissions...');
+
+                // Show loading
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('submissions-table').style.display = 'none';
+
+                // Get date filters
+                const startDate = document.getElementById('start-date').value;
+                const endDate = document.getElementById('end-date').value;
+                const selectedMonth = document.getElementById('month-select').value;
+                const selectedYear = document.getElementById('year-select').value;
+
+                // Filter observations by date
+                const filteredObservations = allObservations.filter(obs => {
+                    // Date range filter
+                    if (startDate || endDate) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (startDate && obsDate < new Date(startDate)) return false;
+                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
+                    }
+
+                    // Month/Year filter
+                    if (selectedMonth || selectedYear) {
+                        const obsDate = new Date(obs.timestamp);
+                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
+                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
+                    }
+
+                    return true;
+                });
+
+                console.log('Filtered observations:', filteredObservations.length);
+
+                // Aggregate data by user
                 const userStats = {};
 
-                allObservations.forEach(obs => {
+                filteredObservations.forEach(obs => {
                     const user = obs.user || 'Anonymous';
                     if (!userStats[user]) {
                         userStats[user] = {
+                            user: user,
                             sightings: 0,
                             maintenance: 0,
                             incidents: 0,
@@ -537,199 +660,85 @@
                     userStats[user].total++;
                 });
 
-                // Add submission counts to users - try multiple matching strategies
-                return users.map(user => {
-                    // Try to find matching user stats by various identifiers
-                    let userKey = null;
+                // Convert to array and sort by current settings
+                let userArray = Object.values(userStats);
 
-                    // First try exact matches
-                    if (userStats[user.name]) userKey = user.name;
-                    else if (userStats[user.email]) userKey = user.email;
-                    else if (userStats[user.phone]) userKey = user.phone;
-                    else if (userStats[user.uid]) userKey = user.uid;
-                    else if (userStats[user.id]) userKey = user.id;
-                    // Try partial matches for name/email
-                    else {
-                        for (const [key, stats] of Object.entries(userStats)) {
-                            if (user.name && key.toLowerCase().includes(user.name.toLowerCase())) {
-                                userKey = key;
-                                break;
-                            }
-                            if (user.email && key.toLowerCase().includes(user.email.split('@')[0].toLowerCase())) {
-                                userKey = key;
-                                break;
-                            }
-                        }
+                // Sort by current column and direction
+                userArray.sort((a, b) => {
+                    let aVal, bVal;
+
+                    switch (currentSortColumn) {
+                        case 'user':
+                            aVal = a.user.toLowerCase();
+                            bVal = b.user.toLowerCase();
+                            break;
+                        case 'sightings':
+                            aVal = a.sightings;
+                            bVal = b.sightings;
+                            break;
+                        case 'maintenance':
+                            aVal = a.maintenance;
+                            bVal = b.maintenance;
+                            break;
+                        case 'incidents':
+                            aVal = a.incidents;
+                            bVal = b.incidents;
+                            break;
+                        case 'total':
+                        default:
+                            aVal = a.total;
+                            bVal = b.total;
+                            break;
                     }
 
-                    return {
-                        ...user,
-                        submissions: userKey ? userStats[userKey] : {
-                            sightings: 0,
-                            maintenance: 0,
-                            incidents: 0,
-                            total: 0
-                        }
-                    };
+                    if (typeof aVal === 'string') {
+                        return currentSortDirection === 'desc' ?
+                            bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+                    } else {
+                        return currentSortDirection === 'desc' ?
+                            bVal - aVal : aVal - bVal;
+                    }
                 });
+
+                console.log('User stats calculated:', userArray.length, 'users');
+
+                // Display the data
+                displayUserSubmissions(userArray);
+
             } catch (error) {
-                console.error('Error calculating user submissions:', error);
-                return users.map(user => ({
-                    ...user,
-                    submissions: {
-                        sightings: 0,
-                        maintenance: 0,
-                        incidents: 0,
-                        total: 0
-                    }
-                }));
+                console.error('Error loading user submissions:', error);
+                document.getElementById('loading').innerHTML = '<div style="color: red;">Error loading data. Please try again.</div>';
             }
         }
 
+        // Display user submissions in table
+        function displayUserSubmissions(userData) {
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('submissions-table').style.display = 'table';
 
-        // Load and display user submissions data
+            // Update stats
+            document.getElementById('total-users').textContent = userData.length;
+            const totalSubmissions = userData.reduce((sum, user) => sum + user.total, 0);
+            document.getElementById('total-submissions').textContent = totalSubmissions;
 
-        // Sorting functionality for user management table
-        let userManagementSortColumn = 'total';
-        let userManagementSortDirection = 'desc';
+            const tbody = document.getElementById('submissions-tbody');
 
-        // Initialize admin page (API key authentication, no login required)
-        async function initAdmin() {
-            showDashboard();
-            await loadUserManagementData();
-        }
-
-        // Show admin dashboard
-        function showDashboard() {
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.remove('hidden');
-        }
-
-
-
-        // Load user management data
-        async function loadUserManagementData() {
-            try {
-                // Ensure observations are loaded first
-                if (!allObservations || allObservations.length === 0) {
-                    console.log('Loading observations for user management...');
-                    await loadObservations();
-                }
-
-                const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
-                    headers: getAdminAuthHeaders()
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Calculate submission counts for each user
-                    const usersWithSubmissions = await calculateUserSubmissions(data.users);
-
-                    // Sort users based on current settings
-                    const sortedUsers = sortUsers(usersWithSubmissions);
-
-                    displayUserManagement(sortedUsers);
-                    updateAdminStats(data.stats);
-                } else {
-                    showAlert('dashboard-alert', data.message || 'Failed to load user data', 'danger');
-                }
-            } catch (error) {
-                console.error('Error loading user management data:', error);
-                showAlert('dashboard-alert', 'Failed to load user data', 'danger');
+            if (userData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">No submissions found for the selected date range</td></tr>';
+                return;
             }
-        }
 
-        // Display user management table
-        function displayUserManagement(users) {
-            const tbody = document.getElementById('users-tbody');
-            tbody.innerHTML = users.map(user => `
+            tbody.innerHTML = userData.map(user => `
                 <tr>
-                    <td>${user.name || 'N/A'}</td>
-                    <td>${user.email || user.phone || 'N/A'}</td>
-                    <td><span class="status ${user.status}">${user.status}</span></td>
-                    <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
-                    <td>${user.submissions.sightings}</td>
-                    <td>${user.submissions.maintenance}</td>
-                    <td>${user.submissions.incidents}</td>
-                    <td class="total-column">${user.submissions.total}</td>
-                    <td>
-                        ${user.status === 'active' ?
-                            `<button class="btn danger" onclick="revokeUser('${user.uid}')">Revoke</button>` :
-                            `<button class="btn success" onclick="restoreUser('${user.uid}')">Restore</button>`
-                        }
-                    </td>
+                    <td>${user.user}</td>
+                    <td>${user.sightings}</td>
+                    <td>${user.maintenance}</td>
+                    <td>${user.incidents}</td>
+                    <td class="total-column">${user.total}</td>
                 </tr>
             `).join('');
         }
-
-        // Update admin stats
-        function updateAdminStats(stats) {
-            document.getElementById('admin-total-users').textContent = stats.total || 0;
-            document.getElementById('admin-active-users').textContent = stats.active || 0;
-            document.getElementById('admin-revoked-users').textContent = stats.revoked || 0;
-        }
-
-        // Revoke user
-        async function revokeUser(userId) {
-            if (!confirm('Are you sure you want to revoke this user?')) return;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
-                    method: 'PATCH',
-                    headers: getAdminAuthHeaders(),
-                    body: JSON.stringify({ status: 'revoked' })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    loadUserManagementData();
-                    showAlert('dashboard-alert', 'User access revoked', 'success');
-                } else {
-                    showAlert('dashboard-alert', data.message || 'Failed to revoke user', 'danger');
-                }
-            } catch (error) {
-                console.error('Error revoking user:', error);
-                showAlert('dashboard-alert', 'Failed to revoke user', 'danger');
-            }
-        }
-
-        // Activate user
-        async function restoreUser(userId) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
-                    method: 'PATCH',
-                    headers: getAdminAuthHeaders(),
-                    body: JSON.stringify({ status: 'active' })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    loadUserManagementData();
-                    showAlert('dashboard-alert', 'User access restored', 'success');
-                } else {
-                    showAlert('dashboard-alert', data.message || 'Failed to restore user', 'danger');
-                }
-            } catch (error) {
-                console.error('Error restoring user:', error);
-                showAlert('dashboard-alert', 'Failed to restore user', 'danger');
-            }
-        }
-
-        // Show alert
-        function showAlert(elementId, message, type = 'info') {
-            const alertDiv = document.getElementById(elementId);
-            alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            alertDiv.style.display = 'block';
-
-            setTimeout(() => {
-                alertDiv.style.display = 'none';
-            }, 5000);
-        }
-
-
 
         // Show error message
         function showError(message) {
@@ -756,24 +765,369 @@
             }, 5000);
         }
 
-        // Set up event listeners
-        document.getElementById('refresh-btn').addEventListener('click', loadUserManagementData);
+        // Initialize the page
+        async function initPage() {
+            try {
+                console.log('Initializing user submissions page...');
+                await loadObservations();
+                await loadUserSubmissions();
+                console.log('Page initialized successfully');
+            } catch (error) {
+                console.error('Error initializing page:', error);
+                showError('Failed to initialize page');
+            }
+        }
 
-        // Column sorting for user management table
-        document.querySelectorAll('#users-table th.sortable').forEach(header => {
+        // Set up event listeners
+        document.getElementById('refresh-btn').addEventListener('click', loadUserSubmissions);
+        document.getElementById('start-date').addEventListener('change', loadUserSubmissions);
+        document.getElementById('end-date').addEventListener('change', loadUserSubmissions);
+        document.getElementById('month-select').addEventListener('change', loadUserSubmissions);
+        document.getElementById('year-select').addEventListener('change', loadUserSubmissions);
+
+        // Admin functionality - uses API key auth
+        let currentSortColumn = 'total';
+        let currentSortDirection = 'desc';
+
+        // Load user management data - Firebase users + observation stats
+        async function loadUserManagementData() {
+            try {
+                // Load observations for submission counts
+                if (allObservations.length === 0) {
+                    await loadObservations();
+                }
+
+                // Fetch users from Firebase via admin API
+                const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+                    headers: getAdminAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data.success || !data.users) {
+                    throw new Error(data.message || 'Failed to load users');
+                }
+
+                // Calculate submission counts from observations
+                const userStats = {};
+                allObservations.forEach(obs => {
+                    const userKey = obs.user || 'Anonymous';
+                    if (!userStats[userKey]) {
+                        userStats[userKey] = { sightings: 0, maintenance: 0, incidents: 0, total: 0 };
+                    }
+                    if (obs.category === 'Sighting') userStats[userKey].sightings++;
+                    else if (obs.category === 'Maintenance') userStats[userKey].maintenance++;
+                    else if (obs.category === 'Incident') userStats[userKey].incidents++;
+                    userStats[userKey].total++;
+                });
+
+                // Merge Firebase users with submission counts
+                const usersWithStats = data.users.map(user => {
+                    const uid = user.uid || user.id;
+                    const matchKey = user.email || user.name || user.phone || uid;
+                    let stats = userStats[matchKey] || userStats[user.email] || userStats[user.name];
+                    if (!stats) {
+                        for (const [key, s] of Object.entries(userStats)) {
+                            if (user.email && key.toLowerCase().includes(user.email.split('@')[0])) {
+                                stats = s;
+                                break;
+                            }
+                            if (user.name && key.toLowerCase().includes(user.name.toLowerCase())) {
+                                stats = s;
+                                break;
+                            }
+                        }
+                    }
+                    stats = stats || { sightings: 0, maintenance: 0, incidents: 0, total: 0 };
+                    return {
+                        ...user,
+                        uid: uid,
+                        sightings: stats.sightings,
+                        maintenance: stats.maintenance,
+                        incidents: stats.incidents,
+                        total: stats.total,
+                        registered: user.registeredAt,
+                        lastLogin: user.lastLogin
+                    };
+                });
+
+                usersWithStats.sort((a, b) => (b.total || 0) - (a.total || 0));
+
+                displayUserManagement(usersWithStats);
+                updateAdminStats(data.stats);
+
+            } catch (error) {
+                console.error('Error loading user management data:', error);
+                showAlert('dashboard-alert', 'Failed to load user data: ' + error.message, 'danger');
+            }
+        }
+
+        // Display user management table
+        function displayUserManagement(users) {
+            const tbody = document.getElementById('users-tbody');
+            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            tbody.innerHTML = users.map(user => {
+                const uid = user.id || user.uid || '';
+                const pwdPlaceholder = user.hasPassword ? '••••••' : 'Set password';
+                return `
+                <tr>
+                    <td>${esc(user.name) || 'N/A'}</td>
+                    <td>${esc(user.email || user.phone) || 'N/A'}</td>
+                    <td>
+                        <select class="role-select" data-user-id="${uid}" onchange="updateUserRole(this.getAttribute('data-user-id'), this.value)">
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                            <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                            <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Viewer</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="password" class="password-input" data-user-id="${uid}" placeholder="${pwdPlaceholder}" 
+                            onblur="saveUserPassword(this.getAttribute('data-user-id'), this.value)" 
+                            style="width: 120px; padding: 4px 8px; font-size: 13px;">
+                    </td>
+                    <td><span class="status ${user.status}">${user.status}</span></td>
+                    <td>${user.registered ? new Date(user.registered).toLocaleDateString() : 'N/A'}</td>
+                    <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
+                    <td>${user.sightings || 0}</td>
+                    <td>${user.maintenance || 0}</td>
+                    <td>${user.incidents || 0}</td>
+                    <td class="total-column">${user.total || 0}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="openEditModal(this)" data-user-id="${uid}" data-name="${esc(user.name)}" data-role="${user.role || 'user'}" style="margin-right: 5px;">Edit</button>
+                        ${user.status === 'active' ?
+                            `<button class="btn danger btn-small" onclick="revokeUser(this.dataset.userId)" data-user-id="${uid}">Revoke</button>` :
+                            `<button class="btn success btn-small" onclick="activateUser(this.dataset.userId)" data-user-id="${uid}">Restore</button>`
+                        }
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        // Update admin stats
+        function updateAdminStats(stats) {
+            document.getElementById('admin-total-users').textContent = stats.total || 0;
+            document.getElementById('admin-active-users').textContent = stats.active || 0;
+            document.getElementById('admin-revoked-users').textContent = stats.revoked || 0;
+        }
+
+        // Create user form handler
+        document.getElementById('create-user-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-user-name').value.trim();
+            const identifier = document.getElementById('new-user-email').value.trim();
+            const password = document.getElementById('new-user-password').value;
+            const role = document.getElementById('new-user-role').value;
+            const body = identifier.includes('@') ? { name, email: identifier, password, role } : { name, phone: identifier, password, role };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+                    method: 'POST',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('create-user-form').reset();
+                    document.getElementById('create-user-alert').innerHTML = '<div class="alert alert-success">User created successfully!</div>';
+                    loadUserManagementData();
+                    setTimeout(() => document.getElementById('create-user-alert').innerHTML = '', 3000);
+                } else {
+                    document.getElementById('create-user-alert').innerHTML = '<div class="alert alert-danger">' + (data.message || 'Failed to create user') + '</div>';
+                }
+            } catch (error) {
+                console.error('Error creating user:', error);
+                document.getElementById('create-user-alert').innerHTML = '<div class="alert alert-danger">Failed to create user</div>';
+            }
+        });
+
+        // Edit user modal
+        function openEditModal(btn) {
+            const userId = btn.getAttribute('data-user-id') || '';
+            const name = btn.getAttribute('data-name') || '';
+            const role = btn.getAttribute('data-role') || 'user';
+            document.getElementById('edit-user-id').value = userId;
+            document.getElementById('edit-user-name').value = name;
+            document.getElementById('edit-user-role').value = role;
+            document.getElementById('edit-user-password').value = '';
+            document.getElementById('edit-user-modal').classList.add('show');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-user-modal').classList.remove('show');
+        }
+
+        document.getElementById('edit-user-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const userId = document.getElementById('edit-user-id').value;
+            const name = document.getElementById('edit-user-name').value.trim();
+            const role = document.getElementById('edit-user-role').value;
+            const password = document.getElementById('edit-user-password').value;
+
+            const body = { name, role };
+            if (password && password.length >= 6) {
+                body.password = password;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    closeEditModal();
+                    showAlert('dashboard-alert', 'User updated successfully', 'success');
+                    loadUserManagementData();
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to update user', 'danger');
+                }
+            } catch (error) {
+                console.error('Error updating user:', error);
+                showAlert('dashboard-alert', 'Failed to update user', 'danger');
+            }
+        });
+
+        async function saveUserPassword(userId, value) {
+            if (!userId) return;
+            if (value && value.length < 6) return; // Min 6 chars to set, empty to clear
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify({ password: value || '' })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('dashboard-alert', value ? 'Password updated' : 'Password cleared', 'success');
+                    if (!value) loadUserManagementData();
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to update password', 'danger');
+                }
+            } catch (error) {
+                console.error('Error updating password:', error);
+                showAlert('dashboard-alert', 'Failed to update password', 'danger');
+            }
+        }
+
+        async function updateUserRole(userId, role) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify({ role })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('dashboard-alert', 'Role updated', 'success');
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to update role', 'danger');
+                    loadUserManagementData();
+                }
+            } catch (error) {
+                console.error('Error updating role:', error);
+                showAlert('dashboard-alert', 'Failed to update role', 'danger');
+                loadUserManagementData();
+            }
+        }
+
+        // Revoke user - Firebase API
+        async function revokeUser(userId) {
+            if (!confirm('Are you sure you want to revoke this user?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
+                    method: 'PATCH',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify({ status: 'revoked' })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('dashboard-alert', 'User access revoked', 'success');
+                    loadUserManagementData();
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to revoke user', 'danger');
+                }
+            } catch (error) {
+                console.error('Error revoking user:', error);
+                showAlert('dashboard-alert', 'Failed to revoke user', 'danger');
+            }
+        }
+
+        // Activate/Restore user - Firebase API
+        async function activateUser(userId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
+                    method: 'PATCH',
+                    headers: getAdminAuthHeaders(),
+                    body: JSON.stringify({ status: 'active' })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('dashboard-alert', 'User access restored', 'success');
+                    loadUserManagementData();
+                } else {
+                    showAlert('dashboard-alert', data.message || 'Failed to restore user', 'danger');
+                }
+            } catch (error) {
+                console.error('Error restoring user:', error);
+                showAlert('dashboard-alert', 'Failed to restore user', 'danger');
+            }
+        }
+
+        // Show alert
+        function showAlert(elementId, message, type = 'info') {
+            const alertDiv = document.getElementById(elementId);
+            alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            alertDiv.style.display = 'block';
+
+            setTimeout(() => {
+                alertDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.admin-tab').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // Column sorting for submissions table
+        document.querySelectorAll('#submissions-table th.sortable').forEach(header => {
             header.addEventListener('click', function() {
                 const sortBy = this.dataset.sort;
 
                 // Toggle sort direction if same column, otherwise set to desc
-                if (userManagementSortColumn === sortBy) {
-                    userManagementSortDirection = userManagementSortDirection === 'desc' ? 'asc' : 'desc';
+                if (currentSortColumn === sortBy) {
+                    currentSortDirection = currentSortDirection === 'desc' ? 'asc' : 'desc';
                 } else {
-                    userManagementSortColumn = sortBy;
-                    userManagementSortDirection = 'desc';
+                    currentSortColumn = sortBy;
+                    currentSortDirection = 'desc';
                 }
 
                 // Update sort indicators
-                document.querySelectorAll('#users-table th.sortable').forEach(th => {
+                document.querySelectorAll('#submissions-table th.sortable').forEach(th => {
                     th.classList.remove('sorted');
                     const indicator = th.querySelector('.sort-indicator');
                     if (indicator) indicator.textContent = '';
@@ -782,81 +1136,113 @@
                 this.classList.add('sorted');
                 const indicator = this.querySelector('.sort-indicator');
                 if (indicator) {
-                    indicator.textContent = userManagementSortDirection === 'desc' ? '↓' : '↑';
+                    indicator.textContent = currentSortDirection === 'desc' ? '↓' : '↑';
                 }
 
                 // Re-sort and display data
-                sortAndDisplayUserManagement();
+                sortAndDisplaySubmissions();
             });
         });
 
-        // Sort users array based on current settings
-        function sortUsers(users) {
-            return users.sort((a, b) => {
+        // Sort and display submissions
+        function sortAndDisplaySubmissions() {
+            // Get current data (assuming it's already loaded)
+            const filteredObservations = allObservations.filter(obs => {
+                const startDate = document.getElementById('start-date').value;
+                const endDate = document.getElementById('end-date').value;
+                const selectedMonth = document.getElementById('month-select').value;
+                const selectedYear = document.getElementById('year-select').value;
+
+                // Date range filter
+                if (startDate || endDate) {
+                    const obsDate = new Date(obs.timestamp);
+                    if (startDate && obsDate < new Date(startDate)) return false;
+                    if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
+                }
+
+                // Month/Year filter
+                if (selectedMonth || selectedYear) {
+                    const obsDate = new Date(obs.timestamp);
+                    if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
+                    if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
+                }
+
+                return true;
+            });
+
+            // Aggregate data by user
+            const userStats = {};
+
+            filteredObservations.forEach(obs => {
+                const user = obs.user || 'Anonymous';
+                if (!userStats[user]) {
+                    userStats[user] = {
+                        user: user,
+                        sightings: 0,
+                        maintenance: 0,
+                        incidents: 0,
+                        total: 0
+                    };
+                }
+
+                // Count by category
+                if (obs.category === 'Sighting') {
+                    userStats[user].sightings++;
+                } else if (obs.category === 'Maintenance') {
+                    userStats[user].maintenance++;
+                } else if (obs.category === 'Incident') {
+                    userStats[user].incidents++;
+                }
+
+                userStats[user].total++;
+            });
+
+            // Convert to array and sort
+            let userArray = Object.values(userStats);
+
+            // Sort by current column and direction
+            userArray.sort((a, b) => {
                 let aVal, bVal;
 
-                switch (userManagementSortColumn) {
-                    case 'name':
-                        aVal = (a.name || 'N/A').toLowerCase();
-                        bVal = (b.name || 'N/A').toLowerCase();
-                        break;
-                    case 'contact':
-                        aVal = (a.email || a.phone || 'N/A').toLowerCase();
-                        bVal = (b.email || b.phone || 'N/A').toLowerCase();
-                        break;
-                    case 'status':
-                        aVal = a.status.toLowerCase();
-                        bVal = b.status.toLowerCase();
-                        break;
-                    case 'lastLogin':
-                        aVal = a.lastLogin ? new Date(a.lastLogin).getTime() : 0;
-                        bVal = b.lastLogin ? new Date(b.lastLogin).getTime() : 0;
+                switch (currentSortColumn) {
+                    case 'user':
+                        aVal = a.user.toLowerCase();
+                        bVal = b.user.toLowerCase();
                         break;
                     case 'sightings':
-                        aVal = a.submissions.sightings;
-                        bVal = b.submissions.sightings;
+                        aVal = a.sightings;
+                        bVal = b.sightings;
                         break;
                     case 'maintenance':
-                        aVal = a.submissions.maintenance;
-                        bVal = b.submissions.maintenance;
+                        aVal = a.maintenance;
+                        bVal = b.maintenance;
                         break;
                     case 'incidents':
-                        aVal = a.submissions.incidents;
-                        bVal = b.submissions.incidents;
+                        aVal = a.incidents;
+                        bVal = b.incidents;
                         break;
                     case 'total':
-                        aVal = a.submissions.total;
-                        bVal = b.submissions.total;
-                        break;
                     default:
-                        aVal = (a.name || 'N/A').toLowerCase();
-                        bVal = (b.name || 'N/A').toLowerCase();
+                        aVal = a.total;
+                        bVal = b.total;
                         break;
                 }
 
                 if (typeof aVal === 'string') {
-                    return userManagementSortDirection === 'desc' ?
+                    return currentSortDirection === 'desc' ?
                         bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
                 } else {
-                    return userManagementSortDirection === 'desc' ?
+                    return currentSortDirection === 'desc' ?
                         bVal - aVal : aVal - bVal;
                 }
             });
-        }
 
-        // Sort and display user management data
-        function sortAndDisplayUserManagement() {
-            // Get current user data (assuming it's already loaded)
-            // This function should be called after users data is loaded
-            loadUserManagementData();
+            // Display the sorted data
+            displayUserSubmissions(userArray);
         }
-
-        // Sort and display submissions
 
         // Start the page
-        (async () => {
-            await initAdmin();
-        })();
+        loadUserManagementData();
     </script>
 </body>
 </html>
