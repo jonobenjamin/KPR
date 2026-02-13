@@ -1445,6 +1445,11 @@
             displayTrees();
 
             updateStats();
+
+            // Always show species legend when on sightings (actual mode)
+            if (currentView === 'sightings' && displayMode === 'actual') {
+                showSpeciesLegend();
+            }
         }
 
         function applyLatestFilters() {
@@ -1858,8 +1863,8 @@
                     // Show water monitoring markers only when water monitoring view is selected
                     if (currentView === 'water-monitoring') {
                         showWaterMonitoringMarkers();
-                        // In water monitoring mode, don't clear sightings - let them show alongside water markers
-                        applyFilters();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
                     } else if (currentView === 'trees') {
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
@@ -1879,8 +1884,11 @@
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
-                        // Reapply filters for map views
                         applyFilters();
+                        // Show legend last - clearFireMarkers hides it, so re-show for sightings
+                        if (currentView === 'sightings' && displayMode === 'actual') {
+                            showSpeciesLegend();
+                        }
                     }
             });
 
