@@ -1160,12 +1160,11 @@
             new Chart(document.getElementById('waterChart'), config);
         }
 
-        // Clear sightings markers (for water monitoring mode)
+        // Clear sightings markers (when switching to trees/fires/water)
         function clearSightingsMarkers() {
-            // Clear all observation markers when in water monitoring mode
             observationsLayer.clearLayers();
             clearLatestMarkers();
-            hideSpeciesLegend();
+            // Legend visibility is managed by view mode handler, not here
         }
 
         function clearFireMarkers() {
