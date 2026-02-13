@@ -32,6 +32,19 @@ async function getUserRole(uid) {
   return 'viewer';
 }
 
+async function loginWithPassword(name, password) {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, password })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Login failed');
+  const { auth, signInWithCustomToken } = window.firebasePortal;
+  await signInWithCustomToken(auth, data.customToken);
+  return data;
+}
+
 async function requestPin(email, name) {
   const res = await fetch(`${API_BASE}/api/auth/request-pin`, {
     method: 'POST',
@@ -126,6 +139,7 @@ function canAccessPage(role, page) {
 window.AuthPortal = {
   waitForFirebase,
   getUserRole,
+  loginWithPassword,
   requestPin,
   verifyPin,
   signInWithPin,
