@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Khwai Private Reserve Monitoring Dashboard</title>
+    <script type="module" src="js/firebase-config.js"></script>
+    <script src="js/auth-portal.js"></script>
+    <script>
+      (async function() {
+        await window.AuthPortal.checkAuthAndRedirect(false);
+        const page = (window.location.pathname.split('/').pop() || 'map.html');
+        const user = window.firebasePortal?.auth?.currentUser;
+        if (user) {
+          const role = await window.AuthPortal.getUserRole(user.uid);
+          if (role !== 'admin') window.location.replace('map-users.html');
+        }
+      })();
+    </script>
 
     <!-- External CSS -->
     <link rel="stylesheet" href="styles.css" />
@@ -22,9 +35,15 @@
     <!-- Top Ribbon -->
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
-        <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
-            Submit Data
-        </a>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <a href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+                Admin Panel
+            </a>
+            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn">
+                Submit Data
+            </a>
+            <a href="#" onclick="window.firebasePortal?.signOut?.(window.firebasePortal.auth).then(()=>location.href='login.html'); return false;" class="submit-data-btn" style="background: #666;">Sign Out</a>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -46,9 +65,11 @@
                 <h4>View Mode</h4>
                 <select id="view-mode-select" class="view-select">
                     <option value="sightings" selected>Sightings</option>
+                    <option value="trees">Trees</option>
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
                     <option value="water-monitoring">Water Monitoring</option>
+                    <option value="fires">Fires</option>
                 </select>
             </div>
 
@@ -155,6 +176,39 @@
 
             </div>
 
+            <!-- Trees Filter (Trees only) -->
+            <div class="control-group" id="trees-group" style="display: none;">
+                <h4>Tree Filter</h4>
+                <div class="species-filter">
+                    <select id="tree-select">
+                        <option value="">All Trees</option>
+                        <option value="sickle-leaved-albizia">Sickle Leaved Albizia</option>
+                        <option value="sausage-tree">Sausage Tree</option>
+                        <option value="african-mangosteen">African Mangosteen</option>
+                        <option value="camel-thorn">Camel Thorn</option>
+                    </select>
+                </div>
+
+                <!-- Stats Display -->
+                <div class="stats-display">
+                    <span class="stat-number" id="trees-count">0</span>
+                    <span class="stat-label">Total Trees</span>
+                </div>
+
+                <!-- Display Mode Switch -->
+                <div class="control-group">
+                    <h4>Display Mode</h4>
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="trees-display-mode-toggle">
+                            <span class="slider round">
+                                <span class="switch-text" data-on="Hotspots" data-off="Actual">Actual</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <!-- Maintenance Stats -->
             <div class="control-group" id="maintenance-group" style="display: none;">
                 <h4>Maintenance Stats</h4>
@@ -252,12 +306,49 @@
                     <button id="submit-water-data" class="btn-submit">Submit Water Data</button>
                 </div>
             </div>
+
+            <!-- Fire Data Controls -->
+            <div class="control-group" id="fires-group" style="display: none;">
+                <h4>Fire Data</h4>
+
+                <!-- Sensor Type Filter -->
+                <div class="form-group">
+                    <label for="fire-sensor-select">Sensor Type</label>
+                    <select id="fire-sensor-select" class="view-select">
+                        <option value="">All Sensors</option>
+                        <option value="VIIRS">VIIRS</option>
+                        <option value="MODIS">MODIS</option>
+                    </select>
+                </div>
+
+                <!-- Days Back Filter -->
+                <div class="form-group">
+                    <label for="fire-days-select">Days Back</label>
+                    <select id="fire-days-select" class="view-select">
+                        <option value="1">1 Day</option>
+                        <option value="3" selected>3 Days</option>
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                        <option value="30">30 Days</option>
+                    </select>
+                </div>
+
+                <!-- Stats Display -->
+                <div class="stats-display">
+                    <span class="stat-number" id="fires-count">0</span>
+                    <span class="stat-label">Total Fires</span>
+                </div>
+
+                <!-- Refresh Button -->
+                <button id="refresh-fires" class="btn-submit" style="width: 100%; margin-top: 10px;">Refresh Fire Data</button>
+            </div>
         </div>
     </div>
 
     <!-- Bottom Ribbon -->
     <div class="bottom-ribbon">
         <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
+    </div>
     </div>
 
     <!-- Leaflet JS -->
@@ -271,8 +362,6 @@
 
     <!-- Chart.js for water monitoring graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
 
     <script>
         // Simple Wildlife Tracker Map
@@ -302,7 +391,10 @@
         // Layer groups for different data types
         const boundaryLayer = L.layerGroup().addTo(map);
         const roadsLayer = L.layerGroup().addTo(map);
+        const campsLayer = L.layerGroup().addTo(map);
+        const treesLayer = L.layerGroup().addTo(map);
         const observationsLayer = L.layerGroup().addTo(map);
+        const firesLayer = L.layerGroup().addTo(map);
 
         // Store markers by type for filtering
         const markersByType = {
@@ -325,12 +417,27 @@
             'hippo': '#4682B4'        // Steel blue
         };
 
+        // Tree color mapping
+        const treeColors = {
+            'sickle-leaved-albizia': '#228B22',    // Forest green
+            'sausage-tree': '#8B4513',             // Saddle brown
+            'african-mangosteen': '#FFD700',       // Gold
+            'camel-thorn': '#DAA520'               // Goldenrod
+        };
+
+        // Tree data
+        let allTrees = [];
+
         // Current view state
         let currentView = 'sightings';
         let displayMode = 'actual'; // 'actual' or 'hotspot'
         let allObservations = [];
         let latestMarkers = [];
         let speciesLegend = null;
+
+        // Fire data state
+        let allFires = [];
+        let fireMarkers = [];
 
         // Water monitoring locations
         const waterMonitoringLocations = {
@@ -545,6 +652,65 @@
             }
         }
 
+        // Load camps from local file
+        async function loadCamps() {
+            try {
+                console.log('Loading camps...');
+                const response = await fetch('data/geojson/Camps.geojson');
+                if (!response.ok) throw new Error(`Camps file not found: ${response.status}`);
+
+                const geoJson = await response.json();
+                console.log('Camps data loaded:', geoJson);
+
+                // Create a custom icon for camps
+                const campIcon = L.icon({
+                    iconUrl: 'data/icons/KPR.svg',
+                    iconSize: [24, 24], // Smaller than water monitoring markers
+                    iconAnchor: [12, 24],
+                    popupAnchor: [0, -24]
+                });
+
+                L.geoJSON(geoJson, {
+                    pointToLayer: function(feature, latlng) {
+                        return L.marker(latlng, { icon: campIcon });
+                    },
+                    onEachFeature: function(feature, layer) {
+                        const campName = feature.properties?.Camps || 'Camp';
+                        layer.bindPopup(`<strong>${campName}</strong><br><em>Camp Location</em>`);
+                    }
+                }).addTo(campsLayer);
+
+                console.log('Camps loaded successfully');
+
+            } catch (error) {
+                console.error('Error loading camps:', error);
+                showError('Failed to load camps data');
+            }
+        }
+
+        // Load trees from local file
+        async function loadTrees() {
+            try {
+                console.log('Loading trees...');
+                const response = await fetch('data/geojson/Wrapped_trees.geojson');
+                if (!response.ok) throw new Error(`Trees file not found: ${response.status}`);
+
+                const geoJson = await response.json();
+                console.log('Trees data loaded:', geoJson);
+
+                allTrees = geoJson.features || [];
+                console.log('Trees loaded successfully, count:', allTrees.length);
+
+                // Log unique tree species for debugging
+                const uniqueSpecies = [...new Set(allTrees.map(tree => tree.properties?.Species).filter(Boolean))];
+                console.log('Unique tree species:', uniqueSpecies);
+
+            } catch (error) {
+                console.error('Error loading trees:', error);
+                showError('Failed to load trees data');
+            }
+        }
+
         // Load observations
         async function loadObservations() {
             try {
@@ -559,8 +725,8 @@
                 console.log('Number of observations received:', data.data ? data.data.length : 0);
 
                 if (data.success && data.data) {
-                    allObservations = data.data; // Store all observations
-                    console.log('Sample observations:', data.data.slice(0, 3).map(obs => ({
+                    allObservations = data.data;
+                    console.log('Sample observations:', allObservations.slice(0, 3).map(obs => ({
                         category: obs.category,
                         timestamp: obs.timestamp,
                         animal: obs.animal,
@@ -568,8 +734,12 @@
                         lng: obs.longitude
                     })));
 
+                    // Log unique animal names for debugging
+                    const uniqueAnimals = [...new Set(allObservations.filter(obs => obs.category === 'Sighting').map(obs => obs.animal).filter(Boolean))];
+                    console.log('Unique animal names in data:', uniqueAnimals);
 
-                    data.data.forEach(observation => {
+
+                    allObservations.forEach(observation => {
                         if (observation.latitude && observation.longitude) {
                             let icon, popupContent;
 
@@ -627,9 +797,8 @@
                         }
                     });
 
-                    // Apply current filters and view
+                    // Apply current filters and view (applyFilters calls updateStats)
                     applyFilters();
-                    updateStats();
 
                     // Show species legend at startup if in sightings mode
                     if (currentView === 'sightings' && displayMode === 'actual') {
@@ -649,13 +818,16 @@
                 await Promise.all([
                     loadBoundary(),
                     loadRoads(),
+                    loadCamps(),
+                    loadTrees(),
                     loadObservations()
                 ]);
 
-                // Always show water monitoring markers
-                showWaterMonitoringMarkers();
-
                 hideLoading();
+                // Ensure legend shows for sightings when returning to page (e.g. from bfcache or after full load)
+                if (currentView === 'sightings' && displayMode === 'actual') {
+                    showSpeciesLegend();
+                }
                 console.log('Map initialization complete');
             } catch (error) {
                 console.error('Error initializing map:', error);
@@ -721,17 +893,86 @@
             }
         }
 
+        function showTreesLegend() {
+            // Remove existing legend
+            if (speciesLegend) {
+                map.removeControl(speciesLegend);
+            }
+
+            // Create new legend
+            speciesLegend = L.control({ position: 'topright' });
+
+            speciesLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'species-legend');
+                div.innerHTML = `
+                    <h4>Tree Species</h4>
+                    ${Object.entries(treeColors).map(([species, color]) => `
+                        <div class="species-item">
+                            <div class="species-dot" style="background-color: ${color}"></div>
+                            <span class="species-name">${species.replace('-', ' ')}</span>
+                        </div>
+                    `).join('')}
+                `;
+                return div;
+            };
+
+            speciesLegend.addTo(map);
+        }
+
+        function hideTreesLegend() {
+            hideSpeciesLegend(); // Reuse the same function since they use the same variable
+        }
+
+        function showFiresLegend() {
+            // Remove existing legend
+            if (speciesLegend) {
+                map.removeControl(speciesLegend);
+            }
+
+            // Create new legend
+            speciesLegend = L.control({ position: 'topright' });
+
+            speciesLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'species-legend');
+                div.innerHTML = `
+                    <h4>Fire Sensors</h4>
+                    <div class="species-item">
+                        <div class="species-dot" style="background-color: red; width: 12px; height: 12px; border-radius: 50%;"></div>
+                        <span class="species-name">VIIRS (High Resolution)</span>
+                    </div>
+                    <div class="species-item">
+                        <div class="species-dot" style="background-color: orange; width: 10px; height: 10px; border-radius: 50%;"></div>
+                        <span class="species-name">MODIS (Moderate Resolution)</span>
+                    </div>
+                `;
+                return div;
+            };
+
+            speciesLegend.addTo(map);
+        }
+
+        function hideFiresLegend() {
+            hideSpeciesLegend(); // Reuse the same function since they use the same variable
+        }
+
         // Show water monitoring markers
         function showWaterMonitoringMarkers() {
             // Clear existing water monitoring markers
             hideWaterMonitoringMarkers();
 
-            // Create custom icon using KPR.svg
-            const waterMonitoringIcon = L.icon({
-                iconUrl: 'data/icons/KPR.svg',
-                iconSize: [32, 32], // Size of the icon
-                iconAnchor: [16, 32], // Point of the icon which corresponds to marker's location
-                popupAnchor: [0, -32] // Point from which the popup should open relative to the iconAnchor
+            // Create blue dot icon for water monitoring (similar to species markers but blue)
+            const waterMonitoringIcon = L.divIcon({
+                className: 'water-monitoring-marker',
+                html: `<div style="
+                    background-color: #1e90ff;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    border: 2px solid #ffffff;
+                    box-shadow: 0 0 6px rgba(30, 144, 255, 0.6);
+                "></div>`,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
             });
 
             Object.values(waterMonitoringLocations).forEach(location => {
@@ -932,18 +1173,141 @@
             new Chart(document.getElementById('waterChart'), config);
         }
 
-        // Clear sightings markers (for water monitoring mode)
+        // Clear sightings markers (when switching to trees/fires/water)
         function clearSightingsMarkers() {
-            // Clear all observation markers when in water monitoring mode
             observationsLayer.clearLayers();
             clearLatestMarkers();
-            hideSpeciesLegend();
+            // Legend visibility is managed by view mode handler, not here
         }
+
+        function clearFireMarkers() {
+            // Clear all fire markers
+            firesLayer.clearLayers();
+            fireMarkers = [];
+            // Hide fire legend when clearing markers
+            hideFiresLegend();
+        }
+
+        // Fetch fire data from API
+        async function loadFires() {
+            try {
+                console.log('Loading fire data...');
+                const days = document.getElementById('fire-days-select').value || '3';
+                const response = await fetch(`${API_BASE_URL}/api/fires?country=USA&days=${days}`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) throw new Error(`Fires API returned ${response.status}`);
+
+                const data = await response.json();
+                console.log('Fire data loaded:', data);
+
+                if (data && data.features) {
+                    allFires = data.features;
+                    console.log('Fire data loaded successfully, count:', allFires.length);
+                    displayFires();
+                } else {
+                    allFires = [];
+                    showError('No fire data available');
+                }
+
+            } catch (error) {
+                console.error('Error loading fire data:', error);
+                showError('Failed to load fire data. Check your connection and try again.');
+                allFires = [];
+            }
+        }
+
+        // Display fire markers
+        function displayFires() {
+            // Clear existing fire markers
+            clearFireMarkers();
+
+            const selectedSensor = document.getElementById('fire-sensor-select').value;
+
+            // Filter fires by sensor type only (show all Africa fires)
+            const filteredFires = allFires.filter(fire => {
+                // Check sensor type
+                if (selectedSensor && fire.properties && fire.properties.sensor !== selectedSensor) {
+                    return false;
+                }
+
+                // Include all fires with valid coordinates
+                return fire.geometry && fire.geometry.coordinates;
+            });
+
+            console.log('Displaying', filteredFires.length, 'fires from', allFires.length, 'total');
+
+            filteredFires.forEach(fire => {
+                if (fire.geometry && fire.geometry.coordinates) {
+                    const coords = fire.geometry.coordinates;
+                    const properties = fire.properties || {};
+
+                    // Create marker based on sensor type
+                    let marker;
+                    if (properties.sensor === "VIIRS") {
+                        marker = L.circleMarker([coords[1], coords[0]], {
+                            radius: 6,
+                            color: "red",
+                            fillColor: "red",
+                            fillOpacity: 0.8,
+                            weight: 2
+                        });
+                    } else {
+                        // MODIS
+                        marker = L.circleMarker([coords[1], coords[0]], {
+                            radius: 5,
+                            color: "orange",
+                            fillColor: "orange",
+                            fillOpacity: 0.7,
+                            weight: 2
+                        });
+                    }
+
+                    // Create popup content
+                    const popupContent = `
+                        <strong>${properties.sensor || 'Unknown'} Fire Detection</strong><br>
+                        <strong>Confidence:</strong> ${properties.confidence || 'N/A'}%<br>
+                        <strong>FRP:</strong> ${properties.frp || 'N/A'} MW<br>
+                        <strong>Brightness:</strong> ${properties.brightness || 'N/A'} K<br>
+                        <strong>Time:</strong> ${properties.acq_time ? formatAcqTime(properties.acq_time) : 'N/A'}<br>
+                        <strong>Date:</strong> ${properties.acq_date || 'N/A'}<br>
+                        <small>Lat: ${coords[1].toFixed(4)}, Lng: ${coords[0].toFixed(4)}</small>
+                    `;
+
+                    marker.bindPopup(popupContent);
+                    marker.addTo(firesLayer);
+                    fireMarkers.push(marker);
+                }
+            });
+
+            // Update fire count and label
+            document.getElementById('fires-count').textContent = filteredFires.length;
+            const fireLabelElement = document.querySelector('#fires-group .stats-display .stat-label');
+            fireLabelElement.textContent = 'Global Fires';
+
+            // Show fire legend
+            showFiresLegend();
+        }
+
+        // Format acquisition time (HHMM format to HH:MM)
+        function formatAcqTime(acqTime) {
+            if (!acqTime || typeof acqTime !== 'string') return 'N/A';
+            const timeStr = acqTime.toString().padStart(4, '0');
+            return `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`;
+        }
+
 
         function applyFilters() {
             // Clear all markers first
             observationsLayer.clearLayers();
             clearLatestMarkers();
+
+            // Debug species filtering
+            if (currentView === 'sightings') {
+                const selectedSpecies = document.getElementById('species-select').value;
+                console.log('Species filter:', selectedSpecies);
+            }
 
             // Apply date filters
             const startDate = document.getElementById('start-date').value;
@@ -975,7 +1339,32 @@
                 // Species filter (sightings only)
                 if (currentView === 'sightings') {
                     const selectedSpecies = document.getElementById('species-select').value;
-                    if (selectedSpecies && obs.animal !== selectedSpecies) return false;
+                    if (selectedSpecies) {
+                        // Case-insensitive comparison
+                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
+                        const filterSpecies = selectedSpecies.toLowerCase().trim();
+
+                        // Handle different formats (spaces vs hyphens)
+                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
+                        const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
+
+                        // Debug logging (only for first few to avoid spam)
+                        if (obs.category === 'Sighting' && Math.random() < 0.1) {
+                            console.log('Species filter debug:', {
+                                original: obs.animal,
+                                normalized: obsAnimal,
+                                filter: filterSpecies,
+                                matches: obsAnimal.includes(filterSpecies) || obsAnimal === filterSpecies
+                            });
+                        }
+
+                        // Check for match
+                        if (!obsAnimal.includes(filterSpecies) &&
+                            !obsAnimalNormalized.includes(filterNormalized) &&
+                            obsAnimal !== filterSpecies) {
+                            return false;
+                        }
+                    }
                 }
 
                 return true;
@@ -983,22 +1372,8 @@
 
             if (displayMode === 'hotspot') {
                 // Create heat map using Leaflet.heat plugin
-                // Use ALL observations within date range for hotspots, not filtered by current view
-                const hotspotObservations = allObservations.filter(obs => {
-                    // Date range filter
-                    if (startDate || endDate) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (startDate && obsDate < new Date(startDate)) return false;
-                        if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
-                    }
-
-                    // Month/Year filter
-                    if (selectedMonth || selectedYear) {
-                        const obsDate = new Date(obs.timestamp);
-                        if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
-                        if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
-                    }
-
+                // Use the same filtered observations as the actual mode
+                const hotspotObservations = filteredObservations.filter(obs => {
                     return obs.latitude && obs.longitude;
                 });
 
@@ -1079,7 +1454,17 @@
             // Apply latest toggles
             applyLatestFilters();
 
-            updateStats();
+            // Handle trees display
+            displayTrees();
+
+            // Count actual data points (not visual elements - same for hotspot or actual mode)
+            const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
+            updateStats(filteredPointCount);
+
+            // Always show species legend when on sightings (actual mode)
+            if (currentView === 'sightings' && displayMode === 'actual') {
+                showSpeciesLegend();
+            }
         }
 
         function applyLatestFilters() {
@@ -1103,6 +1488,116 @@
             }
 
             console.log('Latest markers created:', latestMarkers.length);
+        }
+
+        // Display trees based on current filters
+        function displayTrees() {
+            // Clear existing trees layer
+            treesLayer.clearLayers();
+
+            if (currentView !== 'trees') {
+                return;
+            }
+
+            const selectedTree = document.getElementById('tree-select').value;
+            const treesDisplayMode = document.getElementById('trees-display-mode-toggle').checked ? 'hotspot' : 'actual';
+
+            // Filter trees
+            const filteredTrees = allTrees.filter(tree => {
+                if (!tree.properties || !tree.geometry) return false;
+
+                // Tree type filter
+                if (selectedTree) {
+                    const treeSpecies = (tree.properties.Species || '').toLowerCase().trim();
+                    const filterTree = selectedTree.toLowerCase().trim();
+
+                    // Normalize species names for matching
+                    const treeNormalized = treeSpecies.replace(/\s+/g, '-').replace(/-/g, '');
+                    const filterNormalized = filterTree.replace(/\s+/g, '-').replace(/-/g, '');
+
+                    if (!treeSpecies.includes(filterTree) &&
+                        !treeNormalized.includes(filterNormalized) &&
+                        treeSpecies !== filterTree) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            if (treesDisplayMode === 'hotspot') {
+                // Hide legend in hotspot mode
+                hideTreesLegend();
+
+                // Create heat map for trees
+                const treePoints = filteredTrees
+                    .map(tree => {
+                        const coords = tree.geometry.coordinates;
+                        return [coords[1], coords[0], 1]; // [lat, lng, intensity]
+                    })
+                    .filter(point => point[0] && point[1]);
+
+                console.log('Trees hotspot mode: showing', treePoints.length, 'points');
+
+                if (treePoints.length > 0) {
+                    const heatLayer = L.heatLayer(treePoints, {
+                        radius: 25,
+                        blur: 15,
+                        maxZoom: 17,
+                        minOpacity: 0.6,
+                        gradient: {
+                            0.0: '#228B22',
+                            0.25: '#32CD32',
+                            0.45: '#00FF00',
+                            0.6: '#90EE90',
+                            0.75: '#98FB98',
+                            0.9: '#F0FFF0',
+                            1.0: '#FFFFFF'
+                        }
+                    }).addTo(treesLayer);
+                }
+            } else {
+                // Show legend in actual mode
+                showTreesLegend();
+
+                // Show individual tree markers
+                filteredTrees.forEach(tree => {
+                    if (tree.geometry && tree.geometry.coordinates) {
+                        const coords = tree.geometry.coordinates;
+                        const species = tree.properties.Species || 'Unknown';
+
+                        // Get color for tree species
+                        const speciesKey = species.toLowerCase().replace(/\s+/g, '-');
+                        const color = treeColors[speciesKey] || '#228B22';
+
+                        const treeIcon = L.divIcon({
+                            className: 'tree-marker',
+                            html: `<div style="
+                                background-color: ${color};
+                                width: 10px;
+                                height: 10px;
+                                border-radius: 50%;
+                                border: 2px solid #ffffff;
+                                box-shadow: 0 0 4px rgba(0,0,0,0.5);
+                            "></div>`,
+                            iconSize: [10, 10],
+                            iconAnchor: [5, 5]
+                        });
+
+                        const marker = L.marker([coords[1], coords[0]], { icon: treeIcon })
+                            .bindPopup(`
+                                <strong>${species}</strong><br>
+                                <em>Wrapped Tree</em><br>
+                                <small>Lat: ${coords[1].toFixed(4)}, Lng: ${coords[0].toFixed(4)}</small>
+                            `);
+
+                        marker.addTo(treesLayer);
+                    }
+                });
+            }
+
+            // Update tree count
+            document.getElementById('trees-count').textContent = filteredTrees.length;
         }
 
         function showLatestSightings() {
@@ -1240,15 +1735,16 @@
             console.log('Total black pins created for recent incidents:', markerCount);
         }
 
-        function updateStats() {
-            const filteredCount = observationsLayer.getLayers().length - latestMarkers.length;
+        function updateStats(filteredPointCount) {
+            // Use actual data point count (not layer count - hotspot mode has 1 layer but many points)
+            const count = typeof filteredPointCount === 'number' ? filteredPointCount : (observationsLayer.getLayers().length - latestMarkers.length);
 
             if (currentView === 'sightings') {
-                document.getElementById('total-records').textContent = filteredCount;
+                document.getElementById('total-records').textContent = count;
             } else if (currentView === 'maintenance') {
-                document.getElementById('maintenance-records').textContent = filteredCount;
+                document.getElementById('maintenance-records').textContent = count;
             } else if (currentView === 'incidents') {
-                document.getElementById('incident-records').textContent = filteredCount;
+                document.getElementById('incident-records').textContent = count;
             }
         }
 
@@ -1330,48 +1826,86 @@
         function setupFilters() {
             // View mode dropdown
             document.getElementById('view-mode-select').addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const url = selectedOption.getAttribute('data-url');
+
+                if (url) {
+                    // Navigate to the specified URL
+                    window.location.href = url;
+                    return;
+                }
+
                 currentView = this.value;
 
                     // Show/hide appropriate controls
                     document.getElementById('species-group').style.display =
                         currentView === 'sightings' ? 'block' : 'none';
+                    document.getElementById('trees-group').style.display =
+                        currentView === 'trees' ? 'block' : 'none';
                     document.getElementById('maintenance-group').style.display =
                         currentView === 'maintenance' ? 'block' : 'none';
                     document.getElementById('incidents-group').style.display =
                         currentView === 'incidents' ? 'block' : 'none';
                     document.getElementById('water-monitoring-group').style.display =
                         currentView === 'water-monitoring' ? 'block' : 'none';
+                    document.getElementById('fires-group').style.display =
+                        currentView === 'fires' ? 'block' : 'none';
 
                     // Show/hide date controls for water monitoring
                     const allControlGroups = document.querySelectorAll('.control-group');
 
-                    if (currentView === 'water-monitoring') {
-                        // Hide date range and month/year controls (first two groups)
-                        allControlGroups[0].style.display = 'none'; // Date Range
-                        allControlGroups[1].style.display = 'none'; // Month & Year
+                    if (currentView === 'water-monitoring' || currentView === 'trees') {
+                        // Hide date range (index 1) and month/year (index 2) controls for water monitoring and trees
+                        allControlGroups[1].style.display = 'none'; // Date Range
+                        allControlGroups[2].style.display = 'none'; // Month & Year
                     } else {
                         // Show date controls for other views
-                        allControlGroups[0].style.display = 'block'; // Date Range
-                        allControlGroups[1].style.display = 'block'; // Month & Year
+                        allControlGroups[1].style.display = 'block'; // Date Range
+                        allControlGroups[2].style.display = 'block'; // Month & Year
                     }
 
                     // Show/hide species legend for actual locations mode
                     if (displayMode === 'actual' && currentView === 'sightings') {
                         showSpeciesLegend();
+                    } else if (currentView === 'trees') {
+                        // Trees legend is handled in displayTrees()
+                    } else if (currentView === 'fires') {
+                        showFiresLegend();
                     } else {
                         hideSpeciesLegend();
                     }
 
-                    // Water monitoring markers are always shown
-                    showWaterMonitoringMarkers();
 
-                    // Clear sightings markers when in water monitoring mode
+                    // Show water monitoring markers only when water monitoring view is selected
                     if (currentView === 'water-monitoring') {
+                        showWaterMonitoringMarkers();
                         clearSightingsMarkers();
+                        clearFireMarkers();
+                    } else if (currentView === 'trees') {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                        displayTrees();
+                    } else if (currentView === 'fires') {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                        // Load fire data if not already loaded
+                        if (allFires.length === 0) {
+                            loadFires();
+                        } else {
+                            displayFires();
+                        }
+                    } else {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                        applyFilters();
+                        // Show legend last - clearFireMarkers hides it, so re-show for sightings
+                        if (currentView === 'sightings' && displayMode === 'actual') {
+                            showSpeciesLegend();
+                        }
                     }
-
-                    // Reapply filters
-                    applyFilters();
             });
 
             // Display mode switch (Hotspots/Actual)
@@ -1392,6 +1926,15 @@
                 applyFilters();
             });
 
+            // Trees display mode switch
+            document.getElementById('trees-display-mode-toggle').addEventListener('change', function() {
+                // Update switch text
+                const switchText = this.parentElement.querySelector('.switch-text');
+                switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
+
+                displayTrees();
+            });
+
             // Date filters
             ['start-date', 'end-date', 'month-select', 'year-select'].forEach(id => {
                 document.getElementById(id).addEventListener('change', applyFilters);
@@ -1399,6 +1942,9 @@
 
             // Species filter
             document.getElementById('species-select').addEventListener('change', applyFilters);
+
+            // Tree filter
+            document.getElementById('tree-select').addEventListener('change', displayTrees);
 
             // Latest toggles for each category
             ['latest-sightings-toggle', 'latest-maintenance-toggle', 'latest-incidents-toggle'].forEach(id => {
@@ -1413,11 +1959,33 @@
 
             // Water monitoring submit button
             document.getElementById('submit-water-data').addEventListener('click', submitWaterMonitoringData);
+
+            // Fire controls
+            document.getElementById('fire-sensor-select').addEventListener('change', displayFires);
+            document.getElementById('fire-days-select').addEventListener('change', () => {
+                // Reload fire data when days change
+                loadFires();
+            });
+            document.getElementById('refresh-fires').addEventListener('click', loadFires);
         }
 
-        // Start the map
+
         initMap();
         setupFilters();
+
+        // When returning to page (e.g. back button / bfcache), ensure legend displays for sightings
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted && typeof map !== 'undefined') {
+                map.invalidateSize();
+                if (currentView === 'sightings' && displayMode === 'actual') {
+                    showSpeciesLegend();
+                } else if (currentView === 'trees') {
+                    displayTrees();
+                } else if (currentView === 'fires') {
+                    showFiresLegend();
+                }
+            }
+        });
 
     </script>
 </body>
