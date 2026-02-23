@@ -76,7 +76,7 @@
             <!-- Date Range Controls -->
             <div class="control-group">
                 <h4>Date Range</h4>
-                <div class="date-controls">
+                <div class="date-controls date-range-controls">
                     <div class="date-control">
                         <label for="start-date">Start Date</label>
                         <input type="date" id="start-date">
@@ -157,8 +157,8 @@
 
                 <!-- Display Mode Switch -->
                 <div class="control-group">
-                    <h4>Display Mode</h4>
-                    <div class="switch-container">
+                    <div class="display-mode-row">
+                        <h4>Display Mode</h4>
                         <label class="switch">
                             <input type="checkbox" id="display-mode-toggle">
                             <span class="slider round">
@@ -197,8 +197,8 @@
 
                 <!-- Display Mode Switch -->
                 <div class="control-group">
-                    <h4>Display Mode</h4>
-                    <div class="switch-container">
+                    <div class="display-mode-row">
+                        <h4>Display Mode</h4>
                         <label class="switch">
                             <input type="checkbox" id="trees-display-mode-toggle">
                             <span class="slider round">
@@ -797,9 +797,8 @@
                         }
                     });
 
-                    // Apply current filters and view
+                    // Apply current filters and view (applyFilters calls updateStats)
                     applyFilters();
-                    updateStats();
 
                     // Show species legend at startup if in sightings mode
                     if (currentView === 'sightings' && displayMode === 'actual') {
@@ -1458,7 +1457,9 @@
             // Handle trees display
             displayTrees();
 
-            updateStats();
+            // Count actual data points (not visual elements - same for hotspot or actual mode)
+            const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
+            updateStats(filteredPointCount);
 
             // Always show species legend when on sightings (actual mode)
             if (currentView === 'sightings' && displayMode === 'actual') {
@@ -1734,15 +1735,16 @@
             console.log('Total black pins created for recent incidents:', markerCount);
         }
 
-        function updateStats() {
-            const filteredCount = observationsLayer.getLayers().length - latestMarkers.length;
+        function updateStats(filteredPointCount) {
+            // Use actual data point count (not layer count - hotspot mode has 1 layer but many points)
+            const count = typeof filteredPointCount === 'number' ? filteredPointCount : (observationsLayer.getLayers().length - latestMarkers.length);
 
             if (currentView === 'sightings') {
-                document.getElementById('total-records').textContent = filteredCount;
+                document.getElementById('total-records').textContent = count;
             } else if (currentView === 'maintenance') {
-                document.getElementById('maintenance-records').textContent = filteredCount;
+                document.getElementById('maintenance-records').textContent = count;
             } else if (currentView === 'incidents') {
-                document.getElementById('incident-records').textContent = filteredCount;
+                document.getElementById('incident-records').textContent = count;
             }
         }
 
