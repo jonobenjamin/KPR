@@ -493,7 +493,7 @@ input:checked + .slider .switch-text {
     overflow-y: auto;
 }
 
-/* Camp SVG icons - doubled size (48px), white border */
+/* Camp SVG icons - doubled size (48px) */
 .camp-svg-icon {
     background: none !important;
     border: none !important;
@@ -501,7 +501,6 @@ input:checked + .slider .switch-text {
 .camp-svg-icon img {
     width: 48px !important;
     height: 48px !important;
-    box-shadow: 0 0 0 2px white !important;
 }
 
 /* Custom Leaflet Control Styles */
