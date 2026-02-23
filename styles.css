@@ -493,9 +493,15 @@ input:checked + .slider .switch-text {
     overflow-y: auto;
 }
 
-/* Map SVG icons - doubled size, white edge */
-.leaflet-marker-icon.map-svg-icon {
-    filter: drop-shadow(0 0 1px white) drop-shadow(0 0 1px white) drop-shadow(0 0 2px white);
+/* Camp SVG icons - doubled size (48px), white border */
+.camp-svg-icon {
+    background: none !important;
+    border: none !important;
+}
+.camp-svg-icon img {
+    width: 48px !important;
+    height: 48px !important;
+    box-shadow: 0 0 0 2px white !important;
 }
 
 /* Custom Leaflet Control Styles */
