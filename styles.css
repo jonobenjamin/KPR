@@ -130,6 +130,15 @@ body {
     gap: 15px;
 }
 
+/* Date Range - start/end cells 25% smaller */
+.date-range-controls {
+    max-width: 75%;
+}
+.date-range-controls .date-control input {
+    padding: 7px 9px;
+    font-size: 12px;
+}
+
 .date-control {
     flex: 1;
 }
