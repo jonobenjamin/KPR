@@ -662,12 +662,13 @@
                 const geoJson = await response.json();
                 console.log('Camps data loaded:', geoJson);
 
-                // Create a custom icon for camps
+                // Create a custom icon for camps (2x size, white edge)
                 const campIcon = L.icon({
                     iconUrl: 'data/icons/KPR.svg',
-                    iconSize: [24, 24], // Smaller than water monitoring markers
-                    iconAnchor: [12, 24],
-                    popupAnchor: [0, -24]
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 48],
+                    popupAnchor: [0, -48],
+                    className: 'map-svg-icon'
                 });
 
                 L.geoJSON(geoJson, {
