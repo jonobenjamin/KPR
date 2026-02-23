@@ -160,10 +160,11 @@
                     <div class="display-mode-row">
                         <h4>Display Mode</h4>
                         <label class="switch">
-                            <input type="checkbox" id="display-mode-toggle">
-                            <span class="slider round">
-                                <span class="switch-text" data-on="Hotspots" data-off="Actual">Actual</span>
+                            <span class="switch-track">
+                                <input type="checkbox" id="display-mode-toggle">
+                                <span class="slider round"></span>
                             </span>
+                            <span class="switch-text" data-on="Hotspots" data-off="Actual">Actual</span>
                         </label>
                     </div>
                 </div>
@@ -200,10 +201,11 @@
                     <div class="display-mode-row">
                         <h4>Display Mode</h4>
                         <label class="switch">
-                            <input type="checkbox" id="trees-display-mode-toggle">
-                            <span class="slider round">
-                                <span class="switch-text" data-on="Hotspots" data-off="Actual">Actual</span>
+                            <span class="switch-track">
+                                <input type="checkbox" id="trees-display-mode-toggle">
+                                <span class="slider round"></span>
                             </span>
+                            <span class="switch-text" data-on="Hotspots" data-off="Actual">Actual</span>
                         </label>
                     </div>
                 </div>
@@ -1913,7 +1915,7 @@
                 displayMode = this.checked ? 'hotspot' : 'actual';
 
                 // Update switch text
-                const switchText = this.parentElement.querySelector('.switch-text');
+                const switchText = this.closest('.switch').querySelector('.switch-text');
                 switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
 
                 // Show/hide species legend for actual locations mode
@@ -1929,7 +1931,7 @@
             // Trees display mode switch
             document.getElementById('trees-display-mode-toggle').addEventListener('change', function() {
                 // Update switch text
-                const switchText = this.parentElement.querySelector('.switch-text');
+                const switchText = this.closest('.switch').querySelector('.switch-text');
                 switchText.textContent = this.checked ? 'Hotspots' : 'Actual';
 
                 displayTrees();
