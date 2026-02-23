@@ -278,7 +278,7 @@ input:checked + .slider:before {
     top: 50%;
     transform: translateY(-50%);
     right: 8px;
-    font-size: 0.9rem;
+    font-size: 0.7rem;
     font-weight: 500;
     color: #666;
     transition: right 0.3s, left 0.3s;
