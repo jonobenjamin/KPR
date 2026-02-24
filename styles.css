@@ -506,6 +506,16 @@ input:checked + .slider .switch-text {
     overflow-y: auto;
 }
 
+/* SVG marker icons (skull, no_entry, saw_maintenance) */
+.svg-marker-icon {
+    background: none !important;
+    border: none !important;
+}
+.svg-marker-icon img {
+    width: 24px !important;
+    height: 24px !important;
+}
+
 /* Camp SVG icons - doubled size (48px) */
 .camp-svg-icon {
     background: none !important;
