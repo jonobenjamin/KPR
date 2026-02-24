@@ -649,8 +649,8 @@
                     userStats[userKey].total++;
                 });
 
-                // Merge Firebase users with submission counts
-                const usersWithStats = data.users.map(user => {
+                // Merge Firebase users with submission counts (filtered by month/year)
+                let usersWithStats = data.users.map(user => {
                     const uid = user.uid || user.id;
                     const matchKey = user.email || user.name || user.phone || uid;
                     let stats = userStats[matchKey] || userStats[user.email] || userStats[user.name];
@@ -678,6 +678,11 @@
                         lastLogin: user.lastLogin
                     };
                 });
+
+                // When month/year filter is applied: only show users who submitted in that period
+                if (filterMonth || filterYear) {
+                    usersWithStats = usersWithStats.filter(u => (u.total || 0) > 0);
+                }
 
                 allUsersWithStats = usersWithStats;
                 sortAndDisplayUsers(allUsersWithStats);
