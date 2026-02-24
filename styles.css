@@ -64,10 +64,21 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     background: white;
-    padding: 20px 30px;
+    padding: 24px 36px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+.map-section #loading .loading-icon {
+    width: 48px;
+    height: 48px;
+    animation: spin 1s linear infinite;
+}
+.map-section #loading .loading-text {
     font-size: 16px;
     color: #666;
 }
@@ -730,6 +741,7 @@ input:checked + .slider .switch-text {
     animation: spin 1s linear infinite;
     margin-right: 10px;
 }
+/* Map loading uses .loading-icon + .loading-text - see .map-section #loading */
 
 /* Responsive Design */
 @media (max-width: 768px) {
