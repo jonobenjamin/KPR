@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Khwai Private Reserve Monitoring Dashboard</title>
+    <link rel="icon" type="image/png" href="data/icons/KPR_icon.png">
     <script type="module" src="js/firebase-config.js"></script>
     <script src="js/auth-portal.js"></script>
     <script>
@@ -50,8 +51,9 @@
     <div class="main-content">
         <!-- Map Section (75% width) -->
         <div class="map-section">
-            <div id="loading" class="loading">
-                <div>Loading map data...</div>
+            <div id="loading" class="map-loading">
+                <img src="data/icons/pangolin_loading.svg" alt="" class="loading-icon">
+                <span class="loading-text">Loading...</span>
             </div>
             <div id="map"></div>
         </div>
@@ -326,10 +328,10 @@
                     <label for="fire-days-select">Days Back</label>
                     <select id="fire-days-select" class="view-select">
                         <option value="1">1 Day</option>
+                        <option value="2">2 Days</option>
                         <option value="3" selected>3 Days</option>
-                        <option value="7">7 Days</option>
-                        <option value="14">14 Days</option>
-                        <option value="30">30 Days</option>
+                        <option value="4">4 Days</option>
+                        <option value="5">5 Days</option>
                     </select>
                 </div>
 
@@ -417,6 +419,53 @@
             'hippo': '#4682B4'        // Steel blue
         };
 
+        // Build popup HTML from full observation record (all fields from app)
+        // customHeader: optional string to use instead of default category header
+        function formatObservationPopup(obs, customHeader) {
+            const skipKeys = ['id', 'latitude', 'longitude', 'poaching_image', 'category', 'synced'];
+            const labelMap = {
+                category: 'Category', animal: 'Species', pride: 'Pride Name', leopard: 'Leopard Name',
+                activity: 'Activity', age: 'Age', incident_type: 'Incident Type', poaching_type: 'Poaching Type',
+                poached_animal: 'Poached Animal', maintenance_type: 'Type', user: 'Reported By',
+                timestamp: 'Time', synced: 'Synced', image_filename: 'Image', has_image: 'Has Image', image_path: 'Image Path'
+            };
+            let html = '';
+            if (customHeader) {
+                html += customHeader + '<br>';
+            } else if (obs.category === 'Sighting') {
+                html += '<strong>Animal Sighting</strong><br>';
+            } else if (obs.category === 'Incident') {
+                html += '<strong>Incident Report</strong><br>';
+            } else if (obs.category === 'Maintenance') {
+                html += '<strong>Maintenance Activity</strong><br>';
+            } else {
+                html += '<strong>Observation</strong><br>';
+            }
+            const order = ['animal', 'pride', 'leopard', 'activity', 'age', 'incident_type', 'poaching_type', 'poached_animal', 'maintenance_type', 'user', 'timestamp'];
+            const shown = new Set();
+            order.forEach(k => {
+                if (obs[k] != null && obs[k] !== '' && !skipKeys.includes(k)) {
+                    const label = labelMap[k] || k.replace(/_/g, ' ');
+                    const val = k === 'timestamp' ? new Date(obs[k]).toLocaleString() : String(obs[k]);
+                    html += `<strong>${label}:</strong> ${val}<br>`;
+                    shown.add(k);
+                }
+            });
+            // Show any other fields from the full record
+            Object.keys(obs).forEach(k => {
+                if (!shown.has(k) && !skipKeys.includes(k) && obs[k] != null && obs[k] !== '') {
+                    const label = (labelMap[k] || k.replace(/_/g, ' ')).replace(/\b\w/g, c => c.toUpperCase());
+                    const val = k === 'timestamp' ? new Date(obs[k]).toLocaleString() : String(obs[k]);
+                    html += `<strong>${label}:</strong> ${val}<br>`;
+                }
+            });
+            if (obs.has_image || obs.image_filename) {
+                const imgUrl = `${API_BASE_URL}/api/observations/${obs.id}/image`;
+                html += `<strong>Image:</strong> <a href="${imgUrl}" target="_blank" rel="noopener">View photo</a><br>`;
+            }
+            return html;
+        }
+
         // Tree color mapping
         const treeColors = {
             'sickle-leaved-albizia': '#228B22',    // Forest green
@@ -481,6 +530,34 @@
         const sightingIcon = createCustomIcon('#8B4513');  // Saddle brown for sightings
         const incidentIcon = createCustomIcon('#DC143C');   // Crimson for incidents
         const maintenanceIcon = createCustomIcon('#DAA520'); // Goldenrod for maintenance
+
+        // SVG icons for specific incident/maintenance types
+        const createSvgIcon = (svgPath, size = 24) => L.divIcon({
+            className: 'svg-marker-icon',
+            html: `<img src="${svgPath}" alt="" style="width:${size}px;height:${size}px;display:block;">`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size],
+            popupAnchor: [0, -size]
+        });
+        const skullIcon = createSvgIcon('data/icons/skull.svg');
+        const noEntryIcon = createSvgIcon('data/icons/no_entry.svg');
+        const sawMaintenanceIcon = createSvgIcon('data/icons/saw_maintenance.svg');
+
+        function getObservationIcon(observation) {
+            if (observation.category === 'Incident') {
+                const incType = (observation.incident_type || '').toLowerCase();
+                const poachType = (observation.poaching_type || '').toLowerCase();
+                if (incType.includes('poach') || poachType) return skullIcon;
+                return incidentIcon;
+            }
+            if (observation.category === 'Maintenance') {
+                const maintType = (observation.maintenance_type || '').toLowerCase();
+                if (maintType.includes('road closure')) return noEntryIcon;
+                if (maintType.includes('overgrown') || maintType.includes('pruning')) return sawMaintenanceIcon;
+                return maintenanceIcon;
+            }
+            return null;
+        }
 
         // Hide loading message
         function hideLoading() {
@@ -662,12 +739,13 @@
                 const geoJson = await response.json();
                 console.log('Camps data loaded:', geoJson);
 
-                // Create a custom icon for camps
-                const campIcon = L.icon({
-                    iconUrl: 'data/icons/KPR.svg',
-                    iconSize: [24, 24], // Smaller than water monitoring markers
-                    iconAnchor: [12, 24],
-                    popupAnchor: [0, -24]
+                // Create a custom icon for camps (2x size, white border)
+                const campIcon = L.divIcon({
+                    className: 'camp-svg-icon',
+                    html: '<img src="data/icons/KPR.svg" alt="camp" style="width:48px;height:48px;display:block;">',
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 48],
+                    popupAnchor: [0, -48]
                 });
 
                 L.geoJSON(geoJson, {
@@ -745,43 +823,22 @@
 
                             switch (observation.category) {
                                 case 'Sighting':
-                                    // Use species-specific color for sightings
                                     const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
                                     const speciesColor = speciesColors[animalName] || '#8B4513';
                                     icon = createCustomIcon(speciesColor);
-                                    popupContent = `
-                                        <strong>Animal Sighting</strong><br>
-                                        <strong>Species:</strong> ${observation.animal || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    popupContent = formatObservationPopup(observation);
                                     break;
                                 case 'Incident':
-                                    icon = incidentIcon;
-                                    popupContent = `
-                                        <strong>Incident Report</strong><br>
-                                        <strong>Type:</strong> ${observation.incident_type || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    icon = getObservationIcon(observation) || incidentIcon;
+                                    popupContent = formatObservationPopup(observation);
                                     break;
                                 case 'Maintenance':
-                                    icon = maintenanceIcon;
-                                    popupContent = `
-                                        <strong>Maintenance Activity</strong><br>
-                                        <strong>Type:</strong> ${observation.maintenance_type || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    icon = getObservationIcon(observation) || maintenanceIcon;
+                                    popupContent = formatObservationPopup(observation);
                                     break;
                                 default:
                                     icon = sightingIcon;
-                                    popupContent = `
-                                        <strong>Observation</strong><br>
-                                        <strong>Category:</strong> ${observation.category}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    popupContent = formatObservationPopup(observation);
                             }
 
                             const marker = L.marker([observation.latitude, observation.longitude], { icon })
@@ -860,11 +917,22 @@
             latestMarkers = [];
         }
 
-        function showSpeciesLegend() {
+        function showSpeciesLegend(visibleSpecies) {
             // Remove existing legend
             if (speciesLegend) {
                 map.removeControl(speciesLegend);
             }
+
+            // Use passed species or last computed (for callers that don't have filtered data)
+            const toShow = visibleSpecies != null ? visibleSpecies : lastVisibleSpecies;
+            lastVisibleSpecies = toShow || [];
+
+            // Filter to only species visible on map (by date range, filters, etc.)
+            const speciesToShow = toShow && toShow.length > 0
+                ? Object.entries(speciesColors).filter(([species]) => toShow.includes(species))
+                : Object.entries(speciesColors);
+
+            if (speciesToShow.length === 0) return;
 
             // Create new legend
             speciesLegend = L.control({ position: 'topright' });
@@ -873,7 +941,7 @@
                 const div = L.DomUtil.create('div', 'species-legend');
                 div.innerHTML = `
                     <h4>Species Legend</h4>
-                    ${Object.entries(speciesColors).map(([species, color]) => `
+                    ${speciesToShow.map(([species, color]) => `
                         <div class="species-item">
                             <div class="species-dot" style="background-color: ${color}"></div>
                             <span class="species-name">${species.replace('-', ' ')}</span>
@@ -1284,7 +1352,7 @@
             // Update fire count and label
             document.getElementById('fires-count').textContent = filteredFires.length;
             const fireLabelElement = document.querySelector('#fires-group .stats-display .stat-label');
-            fireLabelElement.textContent = 'Global Fires';
+            fireLabelElement.textContent = 'Total Fires';
 
             // Show fire legend
             showFiresLegend();
@@ -1409,31 +1477,19 @@
                         switch (observation.category) {
                             case 'Sighting':
                                 icon = sightingIcon;
-                                popupContent = `
-                                    <strong>Animal Sighting</strong><br>
-                                    <strong>Species:</strong> ${observation.animal || 'Unknown'}<br>
-                                    <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                    <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                `;
+                                popupContent = formatObservationPopup(observation);
                                 break;
                             case 'Incident':
-                                icon = incidentIcon;
-                                popupContent = `
-                                    <strong>Incident Report</strong><br>
-                                    <strong>Type:</strong> ${observation.incident_type || 'Unknown'}<br>
-                                    <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                    <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                `;
+                                icon = getObservationIcon(observation) || incidentIcon;
+                                popupContent = formatObservationPopup(observation);
                                 break;
                             case 'Maintenance':
-                                icon = maintenanceIcon;
-                                popupContent = `
-                                    <strong>Maintenance Activity</strong><br>
-                                    <strong>Type:</strong> ${observation.maintenance_type || 'Unknown'}<br>
-                                    <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                    <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                `;
+                                icon = getObservationIcon(observation) || maintenanceIcon;
+                                popupContent = formatObservationPopup(observation);
                                 break;
+                            default:
+                                icon = sightingIcon;
+                                popupContent = formatObservationPopup(observation);
                         }
 
                             // For actual locations, use species-specific colors for sightings
@@ -1461,9 +1517,16 @@
             const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
             updateStats(filteredPointCount);
 
-            // Always show species legend when on sightings (actual mode)
+            // Species legend: only show species visible on map (filtered by date, species filter, etc.)
             if (currentView === 'sightings' && displayMode === 'actual') {
-                showSpeciesLegend();
+                const visibleSpecies = [...new Set(
+                    filteredObservations
+                        .filter(obs => obs.category === 'Sighting' && obs.animal)
+                        .map(obs => (obs.animal || '').toLowerCase().replace(/\s+/g, '-'))
+                        .filter(key => speciesColors[key])
+                )];
+                lastVisibleSpecies = visibleSpecies;
+                showSpeciesLegend(visibleSpecies);
             }
         }
 
@@ -1629,12 +1692,7 @@
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`
-                            <strong>🐘 RECENT SIGHTING (This Week)</strong><br>
-                            <strong>Species:</strong> ${obs.animal || 'Unknown'}<br>
-                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
-                            <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
-                        `);
+                        .bindPopup(formatObservationPopup(obs, '<strong>🐘 RECENT SIGHTING (This Week)</strong>'));
 
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
@@ -1674,12 +1732,7 @@
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`
-                            <strong>🔧 RECENT MAINTENANCE (This Week)</strong><br>
-                            <strong>Type:</strong> ${obs.maintenance_type || 'Unknown'}<br>
-                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
-                            <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
-                        `);
+                        .bindPopup(formatObservationPopup(obs, '<strong>🔧 RECENT MAINTENANCE (This Week)</strong>'));
 
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
@@ -1719,12 +1772,7 @@
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`
-                            <strong>🚨 RECENT INCIDENT (This Week)</strong><br>
-                            <strong>Type:</strong> ${obs.incident_type || 'Unknown'}<br>
-                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
-                            <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
-                        `);
+                        .bindPopup(formatObservationPopup(obs, '<strong>🚨 RECENT INCIDENT (This Week)</strong>'));
 
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
