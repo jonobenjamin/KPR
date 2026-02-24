@@ -326,10 +326,10 @@
                     <label for="fire-days-select">Days Back</label>
                     <select id="fire-days-select" class="view-select">
                         <option value="1">1 Day</option>
+                        <option value="2">2 Days</option>
                         <option value="3" selected>3 Days</option>
-                        <option value="7">7 Days</option>
-                        <option value="14">14 Days</option>
-                        <option value="30">30 Days</option>
+                        <option value="4">4 Days</option>
+                        <option value="5">5 Days</option>
                     </select>
                 </div>
 
@@ -1285,7 +1285,7 @@
             // Update fire count and label
             document.getElementById('fires-count').textContent = filteredFires.length;
             const fireLabelElement = document.querySelector('#fires-group .stats-display .stat-label');
-            fireLabelElement.textContent = 'Global Fires';
+            fireLabelElement.textContent = 'Total Fires';
 
             // Show fire legend
             showFiresLegend();
