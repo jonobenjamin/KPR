@@ -530,6 +530,34 @@
         const incidentIcon = createCustomIcon('#DC143C');   // Crimson for incidents
         const maintenanceIcon = createCustomIcon('#DAA520'); // Goldenrod for maintenance
 
+        // SVG icons for specific incident/maintenance types
+        const createSvgIcon = (svgPath, size = 24) => L.divIcon({
+            className: 'svg-marker-icon',
+            html: `<img src="${svgPath}" alt="" style="width:${size}px;height:${size}px;display:block;">`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size],
+            popupAnchor: [0, -size]
+        });
+        const skullIcon = createSvgIcon('data/icons/skull.svg');
+        const noEntryIcon = createSvgIcon('data/icons/no_entry.svg');
+        const sawMaintenanceIcon = createSvgIcon('data/icons/saw_maintenance.svg');
+
+        function getObservationIcon(observation) {
+            if (observation.category === 'Incident') {
+                const incType = (observation.incident_type || '').toLowerCase();
+                const poachType = (observation.poaching_type || '').toLowerCase();
+                if (incType.includes('poach') || poachType) return skullIcon;
+                return incidentIcon;
+            }
+            if (observation.category === 'Maintenance') {
+                const maintType = (observation.maintenance_type || '').toLowerCase();
+                if (maintType.includes('road closure')) return noEntryIcon;
+                if (maintType.includes('overgrown') || maintType.includes('pruning')) return sawMaintenanceIcon;
+                return maintenanceIcon;
+            }
+            return null;
+        }
+
         // Hide loading message
         function hideLoading() {
             const loading = document.getElementById('loading');
@@ -800,11 +828,11 @@
                                     popupContent = formatObservationPopup(observation);
                                     break;
                                 case 'Incident':
-                                    icon = incidentIcon;
+                                    icon = getObservationIcon(observation) || incidentIcon;
                                     popupContent = formatObservationPopup(observation);
                                     break;
                                 case 'Maintenance':
-                                    icon = maintenanceIcon;
+                                    icon = getObservationIcon(observation) || maintenanceIcon;
                                     popupContent = formatObservationPopup(observation);
                                     break;
                                 default:
@@ -1451,11 +1479,11 @@
                                 popupContent = formatObservationPopup(observation);
                                 break;
                             case 'Incident':
-                                icon = incidentIcon;
+                                icon = getObservationIcon(observation) || incidentIcon;
                                 popupContent = formatObservationPopup(observation);
                                 break;
                             case 'Maintenance':
-                                icon = maintenanceIcon;
+                                icon = getObservationIcon(observation) || maintenanceIcon;
                                 popupContent = formatObservationPopup(observation);
                                 break;
                             default:
