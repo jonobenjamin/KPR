@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Khwai Private Reserve Monitoring Dashboard</title>
+    <link rel="icon" type="image/png" href="data/icons/KPR_icon.png">
     <script type="module" src="js/firebase-config.js"></script>
     <script src="js/auth-portal.js"></script>
     <script>
@@ -916,22 +917,28 @@
             latestMarkers = [];
         }
 
-        function showSpeciesLegend(visibleSpecies) {
+        // Default color for species not in speciesColors
+        const DEFAULT_SPECIES_COLOR = '#8B4513';
+
+        function getColorForSpecies(animalName) {
+            const key = (animalName || '').toLowerCase().replace(/\s+/g, '-');
+            return speciesColors[key] || DEFAULT_SPECIES_COLOR;
+        }
+
+        function showSpeciesLegend(visibleSpeciesList) {
             // Remove existing legend
             if (speciesLegend) {
                 map.removeControl(speciesLegend);
             }
 
-            // Use passed species or last computed (for callers that don't have filtered data)
-            const toShow = visibleSpecies != null ? visibleSpecies : lastVisibleSpecies;
+            // Use passed list or last computed (for callers that don't have filtered data)
+            const toShow = visibleSpeciesList != null ? visibleSpeciesList : lastVisibleSpecies;
             lastVisibleSpecies = toShow || [];
 
-            // Filter to only species visible on map (by date range, filters, etc.)
-            const speciesToShow = toShow && toShow.length > 0
-                ? Object.entries(speciesColors).filter(([species]) => toShow.includes(species))
-                : Object.entries(speciesColors);
+            if (toShow.length === 0) return;
 
-            if (speciesToShow.length === 0) return;
+            // toShow is array of { displayName, color } - use observation's actual Species name
+            const speciesToShow = toShow;
 
             // Create new legend
             speciesLegend = L.control({ position: 'topright' });
@@ -940,10 +947,10 @@
                 const div = L.DomUtil.create('div', 'species-legend');
                 div.innerHTML = `
                     <h4>Species Legend</h4>
-                    ${speciesToShow.map(([species, color]) => `
+                    ${speciesToShow.map(({ displayName, color }) => `
                         <div class="species-item">
                             <div class="species-dot" style="background-color: ${color}"></div>
-                            <span class="species-name">${species.replace('-', ' ')}</span>
+                            <span class="species-name">${(displayName || 'Unknown').replace(/</g, '&lt;')}</span>
                         </div>
                     `).join('')}
                 `;
@@ -1516,14 +1523,21 @@
             const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
             updateStats(filteredPointCount);
 
-            // Species legend: only show species visible on map (filtered by date, species filter, etc.)
+            // Species legend: show all species from filtered observations, using actual Species name from data
             if (currentView === 'sightings' && displayMode === 'actual') {
-                const visibleSpecies = [...new Set(
-                    filteredObservations
-                        .filter(obs => obs.category === 'Sighting' && obs.animal)
-                        .map(obs => (obs.animal || '').toLowerCase().replace(/\s+/g, '-'))
-                        .filter(key => speciesColors[key])
-                )];
+                const speciesMap = new Map(); // normalizedKey -> { displayName, color }
+                filteredObservations
+                    .filter(obs => obs.category === 'Sighting' && obs.animal)
+                    .forEach(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        if (name && !speciesMap.has(key)) {
+                            speciesMap.set(key, { displayName: name, color: getColorForSpecies(name) });
+                        }
+                    });
+                const visibleSpecies = [...speciesMap.values()]
+                    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+                    .map(({ displayName, color }) => ({ displayName, color }));
                 lastVisibleSpecies = visibleSpecies;
                 showSpeciesLegend(visibleSpecies);
             }
