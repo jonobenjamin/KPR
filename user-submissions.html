@@ -388,37 +388,9 @@
             </div>
         </div>
 
-        <!-- Create User Section -->
-        <div class="create-user-section" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
-            <h3 style="margin: 0 0 15px 0; color: #2c3e50;">Create New User</h3>
-            <form id="create-user-form" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
-                <div class="form-group" style="margin: 0; min-width: 150px;">
-                    <label for="new-user-name">Name</label>
-                    <input type="text" id="new-user-name" required placeholder="Full name">
-                </div>
-                <div class="form-group" style="margin: 0; min-width: 180px;">
-                    <label for="new-user-email">Email or Phone</label>
-                    <input type="text" id="new-user-email" required placeholder="user@example.com or +1234567890">
-                </div>
-                <div class="form-group" style="margin: 0; min-width: 150px;">
-                    <label for="new-user-password">Password <span style="color: #999; font-size: 11px;">(optional)</span></label>
-                    <input type="password" id="new-user-password" minlength="6" placeholder="Optional - for admin access">
-                </div>
-                <div class="form-group" style="margin: 0; min-width: 150px;">
-                    <label for="new-user-role">Role</label>
-                    <select id="new-user-role">
-                        <option value="admin">Admin</option>
-                        <option value="user" selected>User</option>
-                        <option value="viewer">Viewer</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Create User</button>
-            </form>
-            <div id="create-user-alert" style="margin-top: 10px;"></div>
-        </div>
-
         <!-- Filter Section -->
-        <div class="table-controls" style="margin-bottom: 20px; padding: 15px 20px; background: #f8f9fa; border-radius: 8px;">
+        <div class="table-controls" style="margin-bottom: 20px; padding: 15px 20px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; gap: 20px;">
+            <h3 style="margin: 0; color: #2c3e50; font-size: 16px;">User Submission Filter</h3>
             <div class="table-filters">
                 <div class="date-control">
                     <label for="filter-month">Month</label>
@@ -483,6 +455,35 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Create User Section -->
+        <div class="create-user-section" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px;">
+            <h3 style="margin: 0 0 15px 0; color: #2c3e50;">Create New User</h3>
+            <form id="create-user-form" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="form-group" style="margin: 0; min-width: 150px;">
+                    <label for="new-user-name">Name</label>
+                    <input type="text" id="new-user-name" required placeholder="Full name">
+                </div>
+                <div class="form-group" style="margin: 0; min-width: 180px;">
+                    <label for="new-user-email">Email or Phone</label>
+                    <input type="text" id="new-user-email" required placeholder="user@example.com or +1234567890">
+                </div>
+                <div class="form-group" style="margin: 0; min-width: 150px;">
+                    <label for="new-user-password">Password <span style="color: #999; font-size: 11px;">(optional)</span></label>
+                    <input type="password" id="new-user-password" minlength="6" placeholder="Optional - for admin access">
+                </div>
+                <div class="form-group" style="margin: 0; min-width: 150px;">
+                    <label for="new-user-role">Role</label>
+                    <select id="new-user-role">
+                        <option value="admin">Admin</option>
+                        <option value="user" selected>User</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Create User</button>
+            </form>
+            <div id="create-user-alert" style="margin-top: 10px;"></div>
         </div>
 
     <!-- Edit User Modal -->
