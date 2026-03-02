@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Khwai Private Reserve Monitoring Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data/icons/KPR.svg">
+    <link rel="icon" type="image/png" href="data/icons/KPR_icon.png">
+    <script type="module" src="js/firebase-config.js"></script>
+    <script src="js/auth-portal.js"></script>
+    <script>
+      (async function() {
+        await window.AuthPortal.checkAuthAndRedirect(false);
+        const page = (window.location.pathname.split('/').pop() || 'map.html');
+        const user = window.firebasePortal?.auth?.currentUser;
+        if (user) {
+          const role = await window.AuthPortal.getUserRole(user.uid);
+          if (role !== 'admin') window.location.replace('map-users.html');
+        }
+      })();
+    </script>
 
     <!-- External CSS -->
     <link rel="stylesheet" href="styles.css" />
@@ -23,12 +38,13 @@
     <div class="top-ribbon">
         <h1>Khwai Private Reserve Monitoring Dashboard</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
-            <a href="user-submissions2.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
-                🔐 Admin Panel
+            <a href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+                Admin Panel
             </a>
-            <a href="https://jonobenjamin.github.io/WildlifeTracker-Front_End/" target="_blank" class="submit-data-btn">
+            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn">
                 Submit Data
             </a>
+            <a href="#" onclick="window.firebasePortal?.signOut?.(window.firebasePortal.auth).then(()=>location.href='login.html'); return false;" class="submit-data-btn" style="background: #666;">Sign Out</a>
         </div>
     </div>
 
@@ -36,8 +52,9 @@
     <div class="main-content">
         <!-- Map Section (75% width) -->
         <div class="map-section">
-            <div id="loading" class="loading">
-                <div>Loading map data...</div>
+            <div id="loading" class="map-loading">
+                <img src="data/icons/pangolin_loading.svg" alt="" class="loading-icon">
+                <span class="loading-text">Loading...</span>
             </div>
             <div id="map"></div>
         </div>
@@ -54,6 +71,7 @@
                     <option value="trees">Trees</option>
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
+                    <option value="water-quality">Water Quality</option>
                     <option value="water-monitoring">Water Monitoring</option>
                     <option value="fires">Fires</option>
                 </select>
@@ -62,7 +80,7 @@
             <!-- Date Range Controls -->
             <div class="control-group">
                 <h4>Date Range</h4>
-                <div class="date-controls">
+                <div class="date-controls date-range-controls">
                     <div class="date-control">
                         <label for="start-date">Start Date</label>
                         <input type="date" id="start-date">
@@ -143,8 +161,8 @@
 
                 <!-- Display Mode Switch -->
                 <div class="control-group">
-                    <h4>Display Mode</h4>
-                    <div class="switch-container">
+                    <div class="display-mode-row">
+                        <h4>Display Mode</h4>
                         <label class="switch">
                             <input type="checkbox" id="display-mode-toggle">
                             <span class="slider round">
@@ -183,8 +201,8 @@
 
                 <!-- Display Mode Switch -->
                 <div class="control-group">
-                    <h4>Display Mode</h4>
-                    <div class="switch-container">
+                    <div class="display-mode-row">
+                        <h4>Display Mode</h4>
                         <label class="switch">
                             <input type="checkbox" id="trees-display-mode-toggle">
                             <span class="slider round">
@@ -225,9 +243,9 @@
                 </div>
             </div>
 
-            <!-- Water Monitoring Data Entry -->
-            <div class="control-group" id="water-monitoring-group" style="display: none;">
-                <h4>Water Monitoring</h4>
+            <!-- Water Quality Data Entry (Tuludi, Sable Alley, Little Sable) -->
+            <div class="control-group" id="water-quality-group" style="display: none;">
+                <h4>Water Quality</h4>
 
                 <!-- Location Selection -->
                 <div class="form-group">
@@ -293,6 +311,17 @@
                 </div>
             </div>
 
+            <!-- Water Monitoring - Okavango Delta Flood -->
+            <div class="control-group" id="water-monitoring-group" style="display: none;">
+                <h4>Okavango Delta Flood Extent</h4>
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 12px;">Browse water extent by date. Opens with latest.</p>
+                <div class="okavango-slider-row">
+                    <label for="okavango-date-slider" id="okavango-slider-label" style="font-size: 0.85rem; display: block; margin-bottom: 6px;">—</label>
+                    <input type="range" id="okavango-date-slider" min="0" max="0" value="0" style="width: 100%; accent-color: #3498db;" />
+                </div>
+                <button id="okavango-show-latest" class="btn-submit" style="margin-top: 10px; width: 100%;">Show Latest</button>
+            </div>
+
             <!-- Fire Data Controls -->
             <div class="control-group" id="fires-group" style="display: none;">
                 <h4>Fire Data</h4>
@@ -312,10 +341,10 @@
                     <label for="fire-days-select">Days Back</label>
                     <select id="fire-days-select" class="view-select">
                         <option value="1">1 Day</option>
+                        <option value="2">2 Days</option>
                         <option value="3" selected>3 Days</option>
-                        <option value="7">7 Days</option>
-                        <option value="14">14 Days</option>
-                        <option value="30">30 Days</option>
+                        <option value="4">4 Days</option>
+                        <option value="5">5 Days</option>
                     </select>
                 </div>
 
@@ -333,9 +362,9 @@
 
     <!-- Bottom Ribbon -->
     <div class="bottom-ribbon">
-        <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
+        <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@Jonathan Benjamin</a></p>
     </div>
-
+    </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -348,8 +377,6 @@
 
     <!-- Chart.js for water monitoring graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
 
     <script>
         // Simple Wildlife Tracker Map
@@ -405,6 +432,53 @@
             'hippo': '#4682B4'        // Steel blue
         };
 
+        // Build popup HTML from full observation record (all fields from app)
+        // customHeader: optional string to use instead of default category header
+        function formatObservationPopup(obs, customHeader) {
+            const skipKeys = ['id', 'latitude', 'longitude', 'poaching_image', 'category', 'synced'];
+            const labelMap = {
+                category: 'Category', animal: 'Species', pride: 'Pride Name', leopard: 'Leopard Name',
+                activity: 'Activity', age: 'Age', incident_type: 'Incident Type', poaching_type: 'Poaching Type',
+                poached_animal: 'Poached Animal', maintenance_type: 'Type', user: 'Reported By',
+                timestamp: 'Time', synced: 'Synced', image_filename: 'Image', has_image: 'Has Image', image_path: 'Image Path'
+            };
+            let html = '';
+            if (customHeader) {
+                html += customHeader + '<br>';
+            } else if (obs.category === 'Sighting') {
+                html += '<strong>Animal Sighting</strong><br>';
+            } else if (obs.category === 'Incident') {
+                html += '<strong>Incident Report</strong><br>';
+            } else if (obs.category === 'Maintenance') {
+                html += '<strong>Maintenance Activity</strong><br>';
+            } else {
+                html += '<strong>Observation</strong><br>';
+            }
+            const order = ['animal', 'pride', 'leopard', 'activity', 'age', 'incident_type', 'poaching_type', 'poached_animal', 'maintenance_type', 'user', 'timestamp'];
+            const shown = new Set();
+            order.forEach(k => {
+                if (obs[k] != null && obs[k] !== '' && !skipKeys.includes(k)) {
+                    const label = labelMap[k] || k.replace(/_/g, ' ');
+                    const val = k === 'timestamp' ? new Date(obs[k]).toLocaleString() : String(obs[k]);
+                    html += `<strong>${label}:</strong> ${val}<br>`;
+                    shown.add(k);
+                }
+            });
+            // Show any other fields from the full record
+            Object.keys(obs).forEach(k => {
+                if (!shown.has(k) && !skipKeys.includes(k) && obs[k] != null && obs[k] !== '') {
+                    const label = (labelMap[k] || k.replace(/_/g, ' ')).replace(/\b\w/g, c => c.toUpperCase());
+                    const val = k === 'timestamp' ? new Date(obs[k]).toLocaleString() : String(obs[k]);
+                    html += `<strong>${label}:</strong> ${val}<br>`;
+                }
+            });
+            if (obs.has_image || obs.image_filename) {
+                const imgUrl = `${API_BASE_URL}/api/observations/${obs.id}/image`;
+                html += `<strong>Image:</strong> <a href="${imgUrl}" target="_blank" rel="noopener">View photo</a><br>`;
+            }
+            return html;
+        }
+
         // Tree color mapping
         const treeColors = {
             'sickle-leaved-albizia': '#228B22',    // Forest green
@@ -449,6 +523,11 @@
         // Water monitoring markers
         let waterMonitoringMarkers = [];
 
+        // Okavango Delta flood extent
+        const OKAVANGO_FIREBASE = 'https://okavango-delta-water-default-rtdb.firebaseio.com';
+        let okavangoWaterLayer = null;
+        let okavangoAvailableDates = [];
+
         // Simple marker icons - just colored points
         const createCustomIcon = (color) => {
             return L.divIcon({
@@ -469,6 +548,34 @@
         const sightingIcon = createCustomIcon('#8B4513');  // Saddle brown for sightings
         const incidentIcon = createCustomIcon('#DC143C');   // Crimson for incidents
         const maintenanceIcon = createCustomIcon('#DAA520'); // Goldenrod for maintenance
+
+        // SVG icons for specific incident/maintenance types
+        const createSvgIcon = (svgPath, size = 24) => L.divIcon({
+            className: 'svg-marker-icon',
+            html: `<img src="${svgPath}" alt="" style="width:${size}px;height:${size}px;display:block;">`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size],
+            popupAnchor: [0, -size]
+        });
+        const skullIcon = createSvgIcon('data/icons/skull.svg');
+        const noEntryIcon = createSvgIcon('data/icons/no_entry.svg');
+        const sawMaintenanceIcon = createSvgIcon('data/icons/saw_maintenance.svg');
+
+        function getObservationIcon(observation) {
+            if (observation.category === 'Incident') {
+                const incType = (observation.incident_type || '').toLowerCase();
+                const poachType = (observation.poaching_type || '').toLowerCase();
+                if (incType.includes('poach') || poachType) return skullIcon;
+                return incidentIcon;
+            }
+            if (observation.category === 'Maintenance') {
+                const maintType = (observation.maintenance_type || '').toLowerCase();
+                if (maintType.includes('road closure')) return noEntryIcon;
+                if (maintType.includes('overgrown') || maintType.includes('pruning')) return sawMaintenanceIcon;
+                return maintenanceIcon;
+            }
+            return null;
+        }
 
         // Hide loading message
         function hideLoading() {
@@ -640,6 +747,27 @@
             }
         }
 
+        function formatCampWeather(data) {
+            const ts = data?.properties?.timeseries;
+            if (!ts || ts.length === 0) return '<em>No forecast data</em>';
+            const now = ts[0];
+            const inst = now?.data?.instant?.details || {};
+            const next1 = now?.data?.next_1_hours || now?.data?.next_6_hours || {};
+            const sym = (next1?.summary?.symbol_code || 'unknown').replace(/_/g, ' ');
+            let html = `<strong>Now:</strong> ${Math.round(inst.air_temperature ?? 0)}°C, ${sym}<br>`;
+            html += `Humidity: ${Math.round(inst.relative_humidity ?? 0)}% | Wind: ${(inst.wind_speed ?? 0).toFixed(1)} m/s<br>`;
+            html += `<strong>Forecast:</strong><br>`;
+            for (let i = 0; i < Math.min(5, ts.length); i++) {
+                const t = ts[i];
+                const time = new Date(t.time).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+                const temp = t?.data?.instant?.details?.air_temperature;
+                const sym2 = (t?.data?.next_1_hours || t?.data?.next_6_hours || t?.data?.next_12_hours)?.summary?.symbol_code || '—';
+                html += `${time}: ${Math.round(temp ?? 0)}°C, ${String(sym2).replace(/_/g, ' ')}<br>`;
+            }
+            html += `<br><small>Data from <a href="https://www.met.no/" target="_blank" rel="noopener">MET Norway</a></small>`;
+            return html;
+        }
+
         // Load camps from local file
         async function loadCamps() {
             try {
@@ -650,12 +778,13 @@
                 const geoJson = await response.json();
                 console.log('Camps data loaded:', geoJson);
 
-                // Create a custom icon for camps
-                const campIcon = L.icon({
-                    iconUrl: 'data/icons/KPR.svg',
-                    iconSize: [24, 24], // Smaller than water monitoring markers
-                    iconAnchor: [12, 24],
-                    popupAnchor: [0, -24]
+                // Create a custom icon for camps (2x size, white border)
+                const campIcon = L.divIcon({
+                    className: 'camp-svg-icon',
+                    html: '<img src="data/icons/KPR.svg" alt="camp" style="width:48px;height:48px;display:block;">',
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 48],
+                    popupAnchor: [0, -48]
                 });
 
                 L.geoJSON(geoJson, {
@@ -664,7 +793,25 @@
                     },
                     onEachFeature: function(feature, layer) {
                         const campName = feature.properties?.Camps || 'Camp';
-                        layer.bindPopup(`<strong>${campName}</strong><br><em>Camp Location</em>`);
+                        const latlng = layer.getLatLng();
+                        const initialHtml = `<strong>${campName}</strong><br><em>Camp Location</em><br><span class="weather-loading">Loading weather…</span>`;
+                        layer.bindPopup(initialHtml);
+                        layer.on('popupopen', async function() {
+                            const lat = latlng.lat.toFixed(4);
+                            const lon = latlng.lng.toFixed(4);
+                            try {
+                                const res = await fetch(
+                                    `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
+                                    { headers: { 'User-Agent': 'KPR-Monitoring-Dashboard/1.0 jonobenjamingis@gmail.com' } }
+                                );
+                                if (!res.ok) throw new Error(res.statusText);
+                                const data = await res.json();
+                                const weatherHtml = formatCampWeather(data);
+                                layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br>${weatherHtml}`);
+                            } catch (e) {
+                                layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br><em style="color:#c00;">Weather unavailable: ${e.message}</em>`);
+                            }
+                        });
                     }
                 }).addTo(campsLayer);
 
@@ -713,8 +860,8 @@
                 console.log('Number of observations received:', data.data ? data.data.length : 0);
 
                 if (data.success && data.data) {
-                    allObservations = data.data; // Store all observations
-                    console.log('Sample observations:', data.data.slice(0, 3).map(obs => ({
+                    allObservations = data.data;
+                    console.log('Sample observations:', allObservations.slice(0, 3).map(obs => ({
                         category: obs.category,
                         timestamp: obs.timestamp,
                         animal: obs.animal,
@@ -723,53 +870,32 @@
                     })));
 
                     // Log unique animal names for debugging
-                    const uniqueAnimals = [...new Set(data.data.filter(obs => obs.category === 'Sighting').map(obs => obs.animal).filter(Boolean))];
+                    const uniqueAnimals = [...new Set(allObservations.filter(obs => obs.category === 'Sighting').map(obs => obs.animal).filter(Boolean))];
                     console.log('Unique animal names in data:', uniqueAnimals);
 
 
-                    data.data.forEach(observation => {
+                    allObservations.forEach(observation => {
                         if (observation.latitude && observation.longitude) {
                             let icon, popupContent;
 
                             switch (observation.category) {
                                 case 'Sighting':
-                                    // Use species-specific color for sightings
                                     const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
                                     const speciesColor = speciesColors[animalName] || '#8B4513';
                                     icon = createCustomIcon(speciesColor);
-                                    popupContent = `
-                                        <strong>Animal Sighting</strong><br>
-                                        <strong>Species:</strong> ${observation.animal || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    popupContent = formatObservationPopup(observation);
                                     break;
                                 case 'Incident':
-                                    icon = incidentIcon;
-                                    popupContent = `
-                                        <strong>Incident Report</strong><br>
-                                        <strong>Type:</strong> ${observation.incident_type || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    icon = getObservationIcon(observation) || incidentIcon;
+                                    popupContent = formatObservationPopup(observation);
                                     break;
                                 case 'Maintenance':
-                                    icon = maintenanceIcon;
-                                    popupContent = `
-                                        <strong>Maintenance Activity</strong><br>
-                                        <strong>Type:</strong> ${observation.maintenance_type || 'Unknown'}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    icon = getObservationIcon(observation) || maintenanceIcon;
+                                    popupContent = formatObservationPopup(observation);
                                     break;
                                 default:
                                     icon = sightingIcon;
-                                    popupContent = `
-                                        <strong>Observation</strong><br>
-                                        <strong>Category:</strong> ${observation.category}<br>
-                                        <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                        <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                    `;
+                                    popupContent = formatObservationPopup(observation);
                             }
 
                             const marker = L.marker([observation.latitude, observation.longitude], { icon })
@@ -785,9 +911,8 @@
                         }
                     });
 
-                    // Apply current filters and view
+                    // Apply current filters and view (applyFilters calls updateStats)
                     applyFilters();
-                    updateStats();
 
                     // Show species legend at startup if in sightings mode
                     if (currentView === 'sightings' && displayMode === 'actual') {
@@ -813,6 +938,10 @@
                 ]);
 
                 hideLoading();
+                // Ensure legend shows for sightings when returning to page (e.g. from bfcache or after full load)
+                if (currentView === 'sightings' && displayMode === 'actual') {
+                    showSpeciesLegend();
+                }
                 console.log('Map initialization complete');
             } catch (error) {
                 console.error('Error initializing map:', error);
@@ -845,11 +974,28 @@
             latestMarkers = [];
         }
 
-        function showSpeciesLegend() {
+        // Default color for species not in speciesColors
+        const DEFAULT_SPECIES_COLOR = '#8B4513';
+
+        function getColorForSpecies(animalName) {
+            const key = (animalName || '').toLowerCase().replace(/\s+/g, '-');
+            return speciesColors[key] || DEFAULT_SPECIES_COLOR;
+        }
+
+        function showSpeciesLegend(visibleSpeciesList) {
             // Remove existing legend
             if (speciesLegend) {
                 map.removeControl(speciesLegend);
             }
+
+            // Use passed list or last computed (for callers that don't have filtered data)
+            const toShow = visibleSpeciesList != null ? visibleSpeciesList : lastVisibleSpecies;
+            lastVisibleSpecies = toShow || [];
+
+            if (toShow.length === 0) return;
+
+            // toShow is array of { displayName, color } - use observation's actual Species name
+            const speciesToShow = toShow;
 
             // Create new legend
             speciesLegend = L.control({ position: 'topright' });
@@ -858,10 +1004,10 @@
                 const div = L.DomUtil.create('div', 'species-legend');
                 div.innerHTML = `
                     <h4>Species Legend</h4>
-                    ${Object.entries(speciesColors).map(([species, color]) => `
+                    ${speciesToShow.map(({ displayName, color }) => `
                         <div class="species-item">
                             <div class="species-dot" style="background-color: ${color}"></div>
-                            <span class="species-name">${species.replace('-', ' ')}</span>
+                            <span class="species-name">${(displayName || 'Unknown').replace(/</g, '&lt;')}</span>
                         </div>
                     `).join('')}
                 `;
@@ -983,6 +1129,90 @@
                 }
             });
             waterMonitoringMarkers = [];
+        }
+
+        // ——— Okavango Delta Flood Extent ———
+        function hideOkavangoWater() {
+            if (okavangoWaterLayer) {
+                map.removeLayer(okavangoWaterLayer);
+                okavangoWaterLayer = null;
+            }
+        }
+
+        function formatOkavangoDate(yyyymmdd) {
+            if (!yyyymmdd || yyyymmdd.length !== 8) return yyyymmdd;
+            return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
+        }
+
+        function showOkavangoWater(geojson, dateLabel) {
+            hideOkavangoWater();
+            okavangoWaterLayer = L.geoJSON(geojson, {
+                style: {
+                    fillColor: '#58a6ff',
+                    fillOpacity: 0.45,
+                    color: '#58a6ff',
+                    weight: 1,
+                    opacity: 0.7,
+                },
+            }).addTo(map);
+            const bounds = okavangoWaterLayer.getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+        }
+
+        async function fetchOkavangoDateFromFirebase(dateStr) {
+            const url = `${OKAVANGO_FIREBASE}/okavango/water/by_date/${dateStr}.json`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+            const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+            if (!geojson?.type || !Array.isArray(geojson.features)) throw new Error('Invalid GeoJSON');
+            return geojson;
+        }
+
+        async function loadOkavangoDateByIndex(index) {
+            if (okavangoAvailableDates.length === 0) return;
+            const dateStr = okavangoAvailableDates[index];
+            try {
+                const geojson = await fetchOkavangoDateFromFirebase(dateStr);
+                showOkavangoWater(geojson, formatOkavangoDate(dateStr));
+                const label = document.getElementById('okavango-slider-label');
+                if (label) label.textContent = formatOkavangoDate(dateStr);
+            } catch (e) {
+                console.error('Okavango load error:', e);
+            }
+        }
+
+        async function loadOkavangoFromFirebase() {
+            try {
+                const shallowRes = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/by_date.json?shallow=true`);
+                if (!shallowRes.ok) throw new Error(shallowRes.statusText);
+                const byDate = await shallowRes.json();
+                okavangoAvailableDates = Object.keys(byDate || {}).filter(k => /^\d{8}$/.test(k)).sort();
+                const slider = document.getElementById('okavango-date-slider');
+                const label = document.getElementById('okavango-slider-label');
+                if (!slider || !label) return;
+                if (okavangoAvailableDates.length === 0) {
+                    const latestRes = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/latest.json`);
+                    if (!latestRes.ok) throw new Error(latestRes.statusText);
+                    const data = await latestRes.json();
+                    const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+                    if (!geojson?.type || !Array.isArray(geojson.features)) throw new Error('No water data yet');
+                    showOkavangoWater(geojson, 'Latest');
+                    label.textContent = 'Latest';
+                    slider.min = 0;
+                    slider.max = 0;
+                    slider.value = 0;
+                    slider.style.display = 'none';
+                    return;
+                }
+                slider.min = 0;
+                slider.max = Math.max(0, okavangoAvailableDates.length - 1);
+                slider.value = okavangoAvailableDates.length - 1;
+                slider.style.display = '';
+                await loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+            } catch (e) {
+                console.error('Okavango Firebase load error:', e);
+            }
         }
 
         // Show water monitoring graph for a location
@@ -1158,12 +1388,11 @@
             new Chart(document.getElementById('waterChart'), config);
         }
 
-        // Clear sightings markers (for water monitoring mode)
+        // Clear sightings markers (when switching to trees/fires/water)
         function clearSightingsMarkers() {
-            // Clear all observation markers when in water monitoring mode
             observationsLayer.clearLayers();
             clearLatestMarkers();
-            hideSpeciesLegend();
+            // Legend visibility is managed by view mode handler, not here
         }
 
         function clearFireMarkers() {
@@ -1270,7 +1499,7 @@
             // Update fire count and label
             document.getElementById('fires-count').textContent = filteredFires.length;
             const fireLabelElement = document.querySelector('#fires-group .stats-display .stat-label');
-            fireLabelElement.textContent = 'Global Fires';
+            fireLabelElement.textContent = 'Total Fires';
 
             // Show fire legend
             showFiresLegend();
@@ -1395,31 +1624,19 @@
                         switch (observation.category) {
                             case 'Sighting':
                                 icon = sightingIcon;
-                                popupContent = `
-                                    <strong>Animal Sighting</strong><br>
-                                    <strong>Species:</strong> ${observation.animal || 'Unknown'}<br>
-                                    <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                    <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                `;
+                                popupContent = formatObservationPopup(observation);
                                 break;
                             case 'Incident':
-                                icon = incidentIcon;
-                                popupContent = `
-                                    <strong>Incident Report</strong><br>
-                                    <strong>Type:</strong> ${observation.incident_type || 'Unknown'}<br>
-                                    <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                    <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                `;
+                                icon = getObservationIcon(observation) || incidentIcon;
+                                popupContent = formatObservationPopup(observation);
                                 break;
                             case 'Maintenance':
-                                icon = maintenanceIcon;
-                                popupContent = `
-                                    <strong>Maintenance Activity</strong><br>
-                                    <strong>Type:</strong> ${observation.maintenance_type || 'Unknown'}<br>
-                                    <strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br>
-                                    <strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}
-                                `;
+                                icon = getObservationIcon(observation) || maintenanceIcon;
+                                popupContent = formatObservationPopup(observation);
                                 break;
+                            default:
+                                icon = sightingIcon;
+                                popupContent = formatObservationPopup(observation);
                         }
 
                             // For actual locations, use species-specific colors for sightings
@@ -1443,7 +1660,28 @@
             // Handle trees display
             displayTrees();
 
-            updateStats();
+            // Count actual data points (not visual elements - same for hotspot or actual mode)
+            const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
+            updateStats(filteredPointCount);
+
+            // Species legend: show all species from filtered observations, using actual Species name from data
+            if (currentView === 'sightings' && displayMode === 'actual') {
+                const speciesMap = new Map(); // normalizedKey -> { displayName, color }
+                filteredObservations
+                    .filter(obs => obs.category === 'Sighting' && obs.animal)
+                    .forEach(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        if (name && !speciesMap.has(key)) {
+                            speciesMap.set(key, { displayName: name, color: getColorForSpecies(name) });
+                        }
+                    });
+                const visibleSpecies = [...speciesMap.values()]
+                    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+                    .map(({ displayName, color }) => ({ displayName, color }));
+                lastVisibleSpecies = visibleSpecies;
+                showSpeciesLegend(visibleSpecies);
+            }
         }
 
         function applyLatestFilters() {
@@ -1608,12 +1846,7 @@
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`
-                            <strong>🐘 RECENT SIGHTING (This Week)</strong><br>
-                            <strong>Species:</strong> ${obs.animal || 'Unknown'}<br>
-                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
-                            <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
-                        `);
+                        .bindPopup(formatObservationPopup(obs, '<strong>🐘 RECENT SIGHTING (This Week)</strong>'));
 
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
@@ -1653,12 +1886,7 @@
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`
-                            <strong>🔧 RECENT MAINTENANCE (This Week)</strong><br>
-                            <strong>Type:</strong> ${obs.maintenance_type || 'Unknown'}<br>
-                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
-                            <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
-                        `);
+                        .bindPopup(formatObservationPopup(obs, '<strong>🔧 RECENT MAINTENANCE (This Week)</strong>'));
 
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
@@ -1698,12 +1926,7 @@
                     });
 
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`
-                            <strong>🚨 RECENT INCIDENT (This Week)</strong><br>
-                            <strong>Type:</strong> ${obs.incident_type || 'Unknown'}<br>
-                            <strong>Time:</strong> ${obsDate.toLocaleString()}<br>
-                            <strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}
-                        `);
+                        .bindPopup(formatObservationPopup(obs, '<strong>🚨 RECENT INCIDENT (This Week)</strong>'));
 
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
@@ -1714,15 +1937,16 @@
             console.log('Total black pins created for recent incidents:', markerCount);
         }
 
-        function updateStats() {
-            const filteredCount = observationsLayer.getLayers().length - latestMarkers.length;
+        function updateStats(filteredPointCount) {
+            // Use actual data point count (not layer count - hotspot mode has 1 layer but many points)
+            const count = typeof filteredPointCount === 'number' ? filteredPointCount : (observationsLayer.getLayers().length - latestMarkers.length);
 
             if (currentView === 'sightings') {
-                document.getElementById('total-records').textContent = filteredCount;
+                document.getElementById('total-records').textContent = count;
             } else if (currentView === 'maintenance') {
-                document.getElementById('maintenance-records').textContent = filteredCount;
+                document.getElementById('maintenance-records').textContent = count;
             } else if (currentView === 'incidents') {
-                document.getElementById('incident-records').textContent = filteredCount;
+                document.getElementById('incident-records').textContent = count;
             }
         }
 
@@ -1824,15 +2048,17 @@
                         currentView === 'maintenance' ? 'block' : 'none';
                     document.getElementById('incidents-group').style.display =
                         currentView === 'incidents' ? 'block' : 'none';
-                    // Water monitoring group stays visible to allow switching back
-                    document.getElementById('water-monitoring-group').style.display = 'block';
+                    document.getElementById('water-quality-group').style.display =
+                        currentView === 'water-quality' ? 'block' : 'none';
+                    document.getElementById('water-monitoring-group').style.display =
+                        currentView === 'water-monitoring' ? 'block' : 'none';
                     document.getElementById('fires-group').style.display =
                         currentView === 'fires' ? 'block' : 'none';
 
-                    // Show/hide date controls for water monitoring
+                    // Show/hide date controls for water quality, water monitoring, and trees
                     const allControlGroups = document.querySelectorAll('.control-group');
 
-                    if (currentView === 'water-monitoring' || currentView === 'trees') {
+                    if (currentView === 'water-quality' || currentView === 'water-monitoring' || currentView === 'trees') {
                         // Hide date range (index 1) and month/year (index 2) controls for water monitoring and trees
                         allControlGroups[1].style.display = 'none'; // Date Range
                         allControlGroups[2].style.display = 'none'; // Month & Year
@@ -1854,17 +2080,25 @@
                     }
 
 
-                    // Show water monitoring markers only when water monitoring view is selected
-                    if (currentView === 'water-monitoring') {
+                    // Show water quality markers or Okavango flood layer based on view
+                    if (currentView === 'water-quality') {
+                        hideOkavangoWater();
                         showWaterMonitoringMarkers();
-                        // In water monitoring mode, don't clear sightings - let them show alongside water markers
-                        applyFilters();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                    } else if (currentView === 'water-monitoring') {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                        loadOkavangoFromFirebase();
                     } else if (currentView === 'trees') {
+                        hideOkavangoWater();
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
                         displayTrees();
                     } else if (currentView === 'fires') {
+                        hideOkavangoWater();
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
@@ -1875,11 +2109,15 @@
                             displayFires();
                         }
                     } else {
+                        hideOkavangoWater();
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
-                        // Reapply filters for map views
                         applyFilters();
+                        // Show legend last - clearFireMarkers hides it, so re-show for sightings
+                        if (currentView === 'sightings' && displayMode === 'actual') {
+                            showSpeciesLegend();
+                        }
                     }
             });
 
@@ -1935,6 +2173,29 @@
             // Water monitoring submit button
             document.getElementById('submit-water-data').addEventListener('click', submitWaterMonitoringData);
 
+            // Okavango flood controls
+            document.getElementById('okavango-date-slider').addEventListener('input', (e) => {
+                loadOkavangoDateByIndex(parseInt(e.target.value, 10));
+            });
+            document.getElementById('okavango-show-latest').addEventListener('click', async () => {
+                if (okavangoAvailableDates.length > 0) {
+                    const slider = document.getElementById('okavango-date-slider');
+                    slider.value = okavangoAvailableDates.length - 1;
+                    loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+                } else {
+                    try {
+                        const res = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/latest.json`);
+                        if (!res.ok) throw new Error(res.statusText);
+                        const data = await res.json();
+                        const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+                        showOkavangoWater(geojson, 'Latest');
+                        document.getElementById('okavango-slider-label').textContent = 'Latest';
+                    } catch (e) {
+                        console.error('Okavango latest load error:', e);
+                    }
+                }
+            });
+
             // Fire controls
             document.getElementById('fire-sensor-select').addEventListener('change', displayFires);
             document.getElementById('fire-days-select').addEventListener('change', () => {
@@ -1945,9 +2206,22 @@
         }
 
 
-        // Start the map
         initMap();
         setupFilters();
+
+        // When returning to page (e.g. back button / bfcache), ensure legend displays for sightings
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted && typeof map !== 'undefined') {
+                map.invalidateSize();
+                if (currentView === 'sightings' && displayMode === 'actual') {
+                    showSpeciesLegend();
+                } else if (currentView === 'trees') {
+                    displayTrees();
+                } else if (currentView === 'fires') {
+                    showFiresLegend();
+                }
+            }
+        });
 
     </script>
 </body>
