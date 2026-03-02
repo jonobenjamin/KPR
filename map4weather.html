@@ -31,6 +31,15 @@
         .leaflet-text-path {
             pointer-events: none;
         }
+        .show-weather-btn {
+            display: inline-block;
+            margin-top: 6px;
+            color: #1e90ff;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .show-weather-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -802,22 +811,31 @@
                     onEachFeature: function(feature, layer) {
                         const campName = feature.properties?.Camps || 'Camp';
                         const latlng = layer.getLatLng();
-                        const initialHtml = `<strong>${campName}</strong><br><em>Camp Location</em><br><span class="weather-loading">Loading weather…</span>`;
+                        const initialHtml = `<strong>${campName}</strong><br><em>Camp Location</em><br><a href="#" class="show-weather-btn">Weather ▸</a>`;
                         layer.bindPopup(initialHtml);
-                        layer.on('popupopen', async function() {
-                            const lat = latlng.lat.toFixed(4);
-                            const lon = latlng.lng.toFixed(4);
-                            try {
-                                const res = await fetch(
-                                    `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
-                                    { headers: { 'User-Agent': 'KPR-Monitoring-Dashboard/1.0 jonobenjamingis@gmail.com' } }
-                                );
-                                if (!res.ok) throw new Error(res.statusText);
-                                const data = await res.json();
-                                const weatherHtml = formatCampWeather(data);
-                                layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br>${weatherHtml}`);
-                            } catch (e) {
-                                layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br><em style="color:#c00;">Weather unavailable: ${e.message}</em>`);
+                        layer.on('popupclose', function() { layer.setPopupContent(initialHtml); });
+                        layer.on('popupopen', function() {
+                            const btn = document.querySelector('.leaflet-popup-content .show-weather-btn');
+                            if (btn && !btn.dataset.bound) {
+                                btn.dataset.bound = '1';
+                                btn.addEventListener('click', async function(e) {
+                                    e.preventDefault();
+                                    btn.textContent = 'Loading…';
+                                    const lat = latlng.lat.toFixed(4);
+                                    const lon = latlng.lng.toFixed(4);
+                                    try {
+                                        const res = await fetch(
+                                            `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
+                                            { headers: { 'User-Agent': 'KPR-Monitoring-Dashboard/1.0 jonobenjamingis@gmail.com' } }
+                                        );
+                                        if (!res.ok) throw new Error(res.statusText);
+                                        const data = await res.json();
+                                        const weatherHtml = formatCampWeather(data);
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br>${weatherHtml}`);
+                                    } catch (err) {
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br><em style="color:#c00;">Weather unavailable: ${err.message}</em>`);
+                                    }
+                                });
                             }
                         });
                     }
