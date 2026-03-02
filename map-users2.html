@@ -528,7 +528,6 @@
                     });
 
                     applyFilters();
-                    updateStats();
                     if (currentView === 'sightings' && displayMode === 'actual') showSpeciesLegend();
                 }
             } catch (error) {
@@ -734,7 +733,8 @@
             }
 
             applyLatestFilters();
-            updateStats();
+            const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
+            updateStats(filteredPointCount);
             if (currentView === 'sightings' && displayMode === 'actual') {
                 const speciesMap = new Map();
                 filteredObservations
@@ -798,10 +798,10 @@
             });
         }
 
-        function updateStats() {
-            const filteredCount = observationsLayer.getLayers().length - latestMarkers.length;
-            if (currentView === 'sightings') document.getElementById('total-records').textContent = filteredCount;
-            else if (currentView === 'maintenance') document.getElementById('maintenance-records').textContent = filteredCount;
+        function updateStats(filteredPointCount) {
+            const count = typeof filteredPointCount === 'number' ? filteredPointCount : (observationsLayer.getLayers().length - latestMarkers.length);
+            if (currentView === 'sightings') document.getElementById('total-records').textContent = count;
+            else if (currentView === 'maintenance') document.getElementById('maintenance-records').textContent = count;
         }
 
         function setupFilters() {
