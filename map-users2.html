@@ -41,9 +41,6 @@
     <div class="top-ribbon">
         <h1>Khwai Private Reserve - Wildlife Map</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
-            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn">
-                Submit Data
-            </a>
             <a href="#" onclick="window.firebasePortal?.signOut?.(window.firebasePortal.auth).then(()=>location.href='login.html'); return false;" class="submit-data-btn" style="background: #666;">Sign Out</a>
         </div>
     </div>
@@ -305,6 +302,29 @@
         const sightingIcon = createCustomIcon('#8B4513');
         const maintenanceIcon = createCustomIcon('#DAA520');
 
+        const createSvgIcon = (svgPath, size = 24) => L.divIcon({
+            className: 'svg-marker-icon',
+            html: `<img src="${svgPath}" alt="" style="width:${size}px;height:${size}px;display:block;">`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size],
+            popupAnchor: [0, -size]
+        });
+        const noEntryIcon = createSvgIcon('data/icons/no_entry.svg');
+        const sawMaintenanceIcon = createSvgIcon('data/icons/saw_maintenance.svg');
+
+        function getMaintenanceIcon(observation) {
+            const maintType = (observation.maintenance_type || '').toLowerCase();
+            if (maintType.includes('road closure')) return noEntryIcon;
+            if (maintType.includes('overgrown') || maintType.includes('pruning')) return sawMaintenanceIcon;
+            return maintenanceIcon;
+        }
+
+        const DEFAULT_SPECIES_COLOR = '#8B4513';
+        function getColorForSpecies(animalName) {
+            const key = (animalName || '').toLowerCase().replace(/\s+/g, '-');
+            return speciesColors[key] || DEFAULT_SPECIES_COLOR;
+        }
+
         function hideLoading() {
             const loading = document.getElementById('loading');
             if (loading) loading.style.display = 'none';
@@ -497,7 +517,7 @@
                                 icon = createCustomIcon(speciesColor);
                                 popupContent = formatObservationPopup(observation);
                             } else {
-                                icon = maintenanceIcon;
+                                icon = getMaintenanceIcon(observation);
                                 popupContent = formatObservationPopup(observation);
                             }
 
@@ -536,19 +556,24 @@
             latestMarkers = [];
         }
 
-        function showSpeciesLegend(visibleSpecies) {
+        function showSpeciesLegend(visibleSpeciesList) {
             if (speciesLegend) map.removeControl(speciesLegend);
-            const toShow = visibleSpecies != null ? visibleSpecies : lastVisibleSpecies;
+            const toShow = visibleSpeciesList != null ? visibleSpeciesList : lastVisibleSpecies;
             lastVisibleSpecies = toShow || [];
-            const speciesToShow = toShow && toShow.length > 0
-                ? Object.entries(speciesColors).filter(([species]) => toShow.includes(species))
-                : Object.entries(speciesColors);
-            if (speciesToShow.length === 0) return;
+            if (toShow.length === 0) return;
+            const speciesToShow = toShow;
             speciesLegend = L.control({ position: 'topright' });
             speciesLegend.onAdd = function() {
                 const div = L.DomUtil.create('div', 'species-legend');
-                div.innerHTML = `<h4>Species Legend</h4>${speciesToShow.map(([species, color]) =>
-                    `<div class="species-item"><div class="species-dot" style="background-color: ${color}"></div><span class="species-name">${species.replace('-', ' ')}</span></div>`).join('')}`;
+                div.innerHTML = `
+                    <h4>Species Legend</h4>
+                    ${speciesToShow.map(({ displayName, color }) => `
+                        <div class="species-item">
+                            <div class="species-dot" style="background-color: ${color}"></div>
+                            <span class="species-name">${(displayName || 'Unknown').replace(/</g, '&lt;')}</span>
+                        </div>
+                    `).join('')}
+                `;
                 return div;
             };
             speciesLegend.addTo(map);
@@ -693,16 +718,16 @@
                 filteredObservations.forEach(observation => {
                     if (observation.latitude && observation.longitude) {
                         let icon, popupContent;
-                            if (observation.category === 'Sighting') {
-                                const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
-                                const speciesColor = speciesColors[animalName] || '#8B4513';
-                                icon = createCustomIcon(speciesColor);
-                                popupContent = formatObservationPopup(observation);
-                            } else {
-                                icon = maintenanceIcon;
-                                popupContent = formatObservationPopup(observation);
-                            }
-                            const marker = L.marker([observation.latitude, observation.longitude], { icon }).bindPopup(popupContent);
+                        if (observation.category === 'Sighting') {
+                            const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
+                            const speciesColor = getColorForSpecies(observation.animal);
+                            icon = createCustomIcon(speciesColor);
+                            popupContent = formatObservationPopup(observation);
+                        } else {
+                            icon = getMaintenanceIcon(observation);
+                            popupContent = formatObservationPopup(observation);
+                        }
+                        const marker = L.marker([observation.latitude, observation.longitude], { icon }).bindPopup(popupContent);
                         marker.addTo(observationsLayer);
                     }
                 });
@@ -711,12 +736,19 @@
             applyLatestFilters();
             updateStats();
             if (currentView === 'sightings' && displayMode === 'actual') {
-                const visibleSpecies = [...new Set(
-                    filteredObservations
-                        .filter(obs => obs.category === 'Sighting' && obs.animal)
-                        .map(obs => (obs.animal || '').toLowerCase().replace(/\s+/g, '-'))
-                        .filter(key => speciesColors[key])
-                )];
+                const speciesMap = new Map();
+                filteredObservations
+                    .filter(obs => obs.category === 'Sighting' && obs.animal)
+                    .forEach(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        if (name && !speciesMap.has(key)) {
+                            speciesMap.set(key, { displayName: name, color: getColorForSpecies(name) });
+                        }
+                    });
+                const visibleSpecies = [...speciesMap.values()]
+                    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+                    .map(({ displayName, color }) => ({ displayName, color }));
                 lastVisibleSpecies = visibleSpecies;
                 showSpeciesLegend(visibleSpecies);
             }
