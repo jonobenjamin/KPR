@@ -757,12 +757,20 @@
             let html = `<strong>Now:</strong> ${Math.round(inst.air_temperature ?? 0)}°C, ${sym}<br>`;
             html += `Humidity: ${Math.round(inst.relative_humidity ?? 0)}% | Wind: ${(inst.wind_speed ?? 0).toFixed(1)} m/s<br>`;
             html += `<strong>Forecast:</strong><br>`;
-            for (let i = 0; i < Math.min(5, ts.length); i++) {
-                const t = ts[i];
-                const time = new Date(t.time).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+            const byDay = new Map();
+            for (const t of ts) {
+                const dateKey = t.time.slice(0, 10);
+                if (!byDay.has(dateKey)) byDay.set(dateKey, t);
+            }
+            const dayEntries = Array.from(byDay.values()).slice(0, 6);
+            const today = new Date().toISOString().slice(0, 10);
+            for (const t of dayEntries) {
+                const dateKey = t.time.slice(0, 10);
+                const d = new Date(t.time);
+                const dayLabel = dateKey === today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'short' });
                 const temp = t?.data?.instant?.details?.air_temperature;
                 const sym2 = (t?.data?.next_1_hours || t?.data?.next_6_hours || t?.data?.next_12_hours)?.summary?.symbol_code || '—';
-                html += `${time}: ${Math.round(temp ?? 0)}°C, ${String(sym2).replace(/_/g, ' ')}<br>`;
+                html += `${dayLabel}: ${Math.round(temp ?? 0)}°C, ${String(sym2).replace(/_/g, ' ')}<br>`;
             }
             html += `<br><small>Data from <a href="https://www.met.no/" target="_blank" rel="noopener">MET Norway</a></small>`;
             return html;
