@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Khwai Private Reserve - Wildlife Map</title>
+    <link rel="icon" type="image/svg+xml" href="data/icons/KPR.svg">
+    <link rel="icon" type="image/png" href="data/icons/KPR_icon.png">
     <script type="module" src="js/firebase-config.js"></script>
     <script src="js/auth-portal.js"></script>
     <script>
@@ -23,6 +25,15 @@
         .leaflet-text-path {
             pointer-events: none;
         }
+        .show-weather-btn {
+            display: inline-block;
+            margin-top: 6px;
+            color: #1e90ff;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .show-weather-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -36,31 +47,33 @@
 
     <!-- Main Content -->
     <div class="main-content">
-        <!-- Map Section -->
+        <!-- Map Section (75% width) -->
         <div class="map-section">
-            <div id="loading" class="loading">
-                <div>Loading map data...</div>
+            <div id="loading" class="map-loading">
+                <img src="data/icons/pangolin_loading.svg" alt="" class="loading-icon">
+                <span class="loading-text">Loading...</span>
             </div>
             <div id="map"></div>
         </div>
 
-        <!-- Sidebar -->
+        <!-- Sidebar (40% width) -->
         <div class="sidebar">
             <h3>Filters & Controls</h3>
 
-            <!-- View Mode - Sightings and Maintenance only -->
+            <!-- View Mode - Sightings, Maintenance, Water Monitoring -->
             <div class="control-group">
                 <h4>View Mode</h4>
                 <select id="view-mode-select" class="view-select">
                     <option value="sightings" selected>Sightings</option>
                     <option value="maintenance">Maintenance</option>
+                    <option value="water-monitoring">Water Monitoring</option>
                 </select>
             </div>
 
             <!-- Date Range Controls -->
             <div class="control-group">
                 <h4>Date Range</h4>
-                <div class="date-controls">
+                <div class="date-controls date-range-controls">
                     <div class="date-control">
                         <label for="start-date">Start Date</label>
                         <input type="date" id="start-date">
@@ -120,16 +133,6 @@
                 <div class="species-filter">
                     <select id="species-select">
                         <option value="">All Species</option>
-                        <option value="elephant">Elephant</option>
-                        <option value="lion">Lion</option>
-                        <option value="leopard">Leopard</option>
-                        <option value="buffalo">Buffalo</option>
-                        <option value="giraffe">Giraffe</option>
-                        <option value="zebra">Zebra</option>
-                        <option value="wild-dog">Wild Dog</option>
-                        <option value="hyena">Hyena</option>
-                        <option value="cheetah">Cheetah</option>
-                        <option value="hippo">Hippo</option>
                     </select>
                 </div>
 
@@ -139,8 +142,8 @@
                 </div>
 
                 <div class="control-group">
-                    <h4>Display Mode</h4>
-                    <div class="switch-container">
+                    <div class="display-mode-row">
+                        <h4>Display Mode</h4>
                         <label class="switch">
                             <input type="checkbox" id="display-mode-toggle">
                             <span class="slider round">
@@ -169,12 +172,23 @@
                     <label for="latest-maintenance-toggle">Show Recent Maintenance (This Week)</label>
                 </div>
             </div>
+
+            <!-- Water Monitoring - Okavango Delta Flood -->
+            <div class="control-group" id="water-monitoring-group" style="display: none;">
+                <h4>Okavango Delta Flood Extent</h4>
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 12px;">Browse water extent by date. Opens with latest.</p>
+                <div class="okavango-slider-row">
+                    <label for="okavango-date-slider" id="okavango-slider-label" style="font-size: 0.85rem; display: block; margin-bottom: 6px;">—</label>
+                    <input type="range" id="okavango-date-slider" min="0" max="0" value="0" style="width: 100%; accent-color: #3498db;" />
+                </div>
+                <button id="okavango-show-latest" class="btn-submit" style="margin-top: 10px; width: 100%;">Show Latest</button>
+            </div>
         </div>
     </div>
 
     <!-- Bottom Ribbon -->
     <div class="bottom-ribbon">
-        <p>© 2025 Khwai Private Reserve | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
+        <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@Jonathan Benjamin</a></p>
     </div>
 
     <!-- Leaflet JS -->
@@ -222,11 +236,49 @@
             'cheetah': '#FFD700', 'hippo': '#4682B4'
         };
 
+        function formatObservationPopup(obs, customHeader) {
+            const skipKeys = ['id', 'latitude', 'longitude', 'poaching_image', 'category', 'synced'];
+            const labelMap = {
+                category: 'Category', animal: 'Species', pride: 'Pride Name', leopard: 'Leopard Name',
+                activity: 'Activity', age: 'Age', incident_type: 'Incident Type', poaching_type: 'Poaching Type',
+                poached_animal: 'Poached Animal', maintenance_type: 'Type', user: 'Reported By',
+                timestamp: 'Time', synced: 'Synced', image_filename: 'Image', has_image: 'Has Image', image_path: 'Image Path'
+            };
+            let html = '';
+            if (customHeader) html += customHeader + '<br>';
+            else if (obs.category === 'Sighting') html += '<strong>Animal Sighting</strong><br>';
+            else if (obs.category === 'Incident') html += '<strong>Incident Report</strong><br>';
+            else if (obs.category === 'Maintenance') html += '<strong>Maintenance Activity</strong><br>';
+            else html += '<strong>Observation</strong><br>';
+            const order = ['animal', 'pride', 'leopard', 'activity', 'age', 'incident_type', 'poaching_type', 'poached_animal', 'maintenance_type', 'user', 'timestamp'];
+            const shown = new Set();
+            order.forEach(k => {
+                if (obs[k] != null && obs[k] !== '' && !skipKeys.includes(k)) {
+                    const label = labelMap[k] || k.replace(/_/g, ' ');
+                    const val = k === 'timestamp' ? new Date(obs[k]).toLocaleString() : String(obs[k]);
+                    html += `<strong>${label}:</strong> ${val}<br>`;
+                    shown.add(k);
+                }
+            });
+            Object.keys(obs).forEach(k => {
+                if (!shown.has(k) && !skipKeys.includes(k) && obs[k] != null && obs[k] !== '') {
+                    const label = (labelMap[k] || k.replace(/_/g, ' ')).replace(/\b\w/g, c => c.toUpperCase());
+                    const val = k === 'timestamp' ? new Date(obs[k]).toLocaleString() : String(obs[k]);
+                    html += `<strong>${label}:</strong> ${val}<br>`;
+                }
+            });
+            if (obs.has_image || obs.image_filename) {
+                html += `<strong>Image:</strong> <a href="${API_BASE_URL}/api/observations/${obs.id}/image" target="_blank" rel="noopener">View photo</a><br>`;
+            }
+            return html;
+        }
+
         let currentView = 'sightings';
         let displayMode = 'actual';
         let allObservations = [];
         let latestMarkers = [];
         let speciesLegend = null;
+        let lastVisibleSpecies = [];
 
         const createCustomIcon = (color) => {
             return L.divIcon({
@@ -239,6 +291,36 @@
 
         const sightingIcon = createCustomIcon('#8B4513');
         const maintenanceIcon = createCustomIcon('#DAA520');
+
+        const createSvgIcon = (svgPath, size = 24) => L.divIcon({
+            className: 'svg-marker-icon',
+            html: `<img src="${svgPath}" alt="" style="width:${size}px;height:${size}px;display:block;">`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size],
+            popupAnchor: [0, -size]
+        });
+        const noEntryIcon = createSvgIcon('data/icons/no_entry.svg');
+        const sawMaintenanceIcon = createSvgIcon('data/icons/saw_maintenance.svg');
+
+        function getMaintenanceIcon(observation) {
+            const maintType = (observation.maintenance_type || '').toLowerCase();
+            if (maintType.includes('road closure')) return noEntryIcon;
+            if (maintType.includes('overgrown') || maintType.includes('pruning')) return sawMaintenanceIcon;
+            return maintenanceIcon;
+        }
+
+        const DEFAULT_SPECIES_COLOR = '#8B4513';
+        function getColorForSpecies(animalName) {
+            const key = (animalName || '').toLowerCase().replace(/\s+/g, '-');
+            if (speciesColors[key]) return speciesColors[key];
+            if (!animalName || !String(animalName).trim()) return DEFAULT_SPECIES_COLOR;
+            let hash = 0;
+            for (let i = 0; i < key.length; i++) {
+                hash = key.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = Math.abs(hash % 360);
+            return `hsl(${hue}, 65%, 45%)`;
+        }
 
         function hideLoading() {
             const loading = document.getElementById('loading');
@@ -328,22 +410,83 @@
             }
         }
 
+        function formatCampWeather(data) {
+            const ts = data?.properties?.timeseries;
+            if (!ts || ts.length === 0) return '<em>No forecast data</em>';
+            const now = ts[0];
+            const inst = now?.data?.instant?.details || {};
+            const next1 = now?.data?.next_1_hours || now?.data?.next_6_hours || {};
+            const sym = (next1?.summary?.symbol_code || 'unknown').replace(/_/g, ' ');
+            let html = `<strong>Now:</strong> ${Math.round(inst.air_temperature ?? 0)}°C, ${sym}<br>`;
+            html += `Humidity: ${Math.round(inst.relative_humidity ?? 0)}% | Wind: ${(inst.wind_speed ?? 0).toFixed(1)} m/s<br>`;
+            html += `<strong>Forecast:</strong><br>`;
+            const byDay = new Map();
+            for (const t of ts) {
+                const dateKey = t.time.slice(0, 10);
+                if (!byDay.has(dateKey)) byDay.set(dateKey, t);
+            }
+            const dayEntries = Array.from(byDay.values()).slice(0, 6);
+            const today = new Date().toISOString().slice(0, 10);
+            for (const t of dayEntries) {
+                const dateKey = t.time.slice(0, 10);
+                const d = new Date(t.time);
+                const dayLabel = dateKey === today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'short' });
+                const temp = t?.data?.instant?.details?.air_temperature;
+                const sym2 = (t?.data?.next_1_hours || t?.data?.next_6_hours || t?.data?.next_12_hours)?.summary?.symbol_code || '—';
+                html += `${dayLabel}: ${Math.round(temp ?? 0)}°C, ${String(sym2).replace(/_/g, ' ')}<br>`;
+            }
+            html += `<br><small>Data from <a href="https://www.met.no/" target="_blank" rel="noopener">MET Norway</a></small>`;
+            return html;
+        }
+
+        const OKAVANGO_FIREBASE = 'https://okavango-delta-water-default-rtdb.firebaseio.com';
+        let okavangoWaterLayer = null;
+        let okavangoAvailableDates = [];
+
         async function loadCamps() {
             try {
                 const response = await fetch('data/geojson/Camps.geojson');
                 if (!response.ok) throw new Error(`Camps file not found: ${response.status}`);
                 const geoJson = await response.json();
-                const campIcon = L.icon({
-                    iconUrl: 'data/icons/KPR.svg',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 24],
-                    popupAnchor: [0, -24]
+                const campIcon = L.divIcon({
+                    className: 'camp-svg-icon',
+                    html: '<img src="data/icons/KPR.svg" alt="camp" style="width:48px;height:48px;display:block;">',
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 48],
+                    popupAnchor: [0, -48]
                 });
                 L.geoJSON(geoJson, {
                     pointToLayer: (feature, latlng) => L.marker(latlng, { icon: campIcon }),
-                    onEachFeature: (feature, layer) => {
+                    onEachFeature: function(feature, layer) {
                         const campName = feature.properties?.Camps || 'Camp';
-                        layer.bindPopup(`<strong>${campName}</strong><br><em>Camp Location</em>`);
+                        const latlng = layer.getLatLng();
+                        const initialHtml = `<strong>${campName}</strong><br><em>Camp Location</em><br><a href="#" class="show-weather-btn">Weather ▸</a>`;
+                        layer.bindPopup(initialHtml);
+                        layer.on('popupclose', function() { layer.setPopupContent(initialHtml); });
+                        layer.on('popupopen', function() {
+                            const btn = document.querySelector('.leaflet-popup-content .show-weather-btn');
+                            if (btn && !btn.dataset.bound) {
+                                btn.dataset.bound = '1';
+                                btn.addEventListener('click', async function(e) {
+                                    e.preventDefault();
+                                    btn.textContent = 'Loading…';
+                                    const lat = latlng.lat.toFixed(4);
+                                    const lon = latlng.lng.toFixed(4);
+                                    try {
+                                        const res = await fetch(
+                                            `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
+                                            { headers: { 'User-Agent': 'KPR-Monitoring-Dashboard/1.0 jonobenjamingis@gmail.com' } }
+                                        );
+                                        if (!res.ok) throw new Error(res.statusText);
+                                        const data = await res.json();
+                                        const weatherHtml = formatCampWeather(data);
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br>${weatherHtml}`);
+                                    } catch (err) {
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br><em style="color:#c00;">Weather unavailable: ${err.message}</em>`);
+                                    }
+                                });
+                            }
+                        });
                     }
                 }).addTo(campsLayer);
             } catch (error) {
@@ -369,10 +512,10 @@
                                 const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
                                 const speciesColor = speciesColors[animalName] || '#8B4513';
                                 icon = createCustomIcon(speciesColor);
-                                popupContent = `<strong>Animal Sighting</strong><br><strong>Species:</strong> ${observation.animal || 'Unknown'}<br><strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br><strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}`;
+                                popupContent = formatObservationPopup(observation);
                             } else {
-                                icon = maintenanceIcon;
-                                popupContent = `<strong>Maintenance Activity</strong><br><strong>Type:</strong> ${observation.maintenance_type || 'Unknown'}<br><strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br><strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}`;
+                                icon = getMaintenanceIcon(observation);
+                                popupContent = formatObservationPopup(observation);
                             }
 
                             const marker = L.marker([observation.latitude, observation.longitude], { icon }).bindPopup(popupContent);
@@ -382,7 +525,6 @@
                     });
 
                     applyFilters();
-                    updateStats();
                     if (currentView === 'sightings' && displayMode === 'actual') showSpeciesLegend();
                 }
             } catch (error) {
@@ -410,13 +552,24 @@
             latestMarkers = [];
         }
 
-        function showSpeciesLegend() {
+        function showSpeciesLegend(visibleSpeciesList) {
             if (speciesLegend) map.removeControl(speciesLegend);
+            const toShow = visibleSpeciesList != null ? visibleSpeciesList : lastVisibleSpecies;
+            lastVisibleSpecies = toShow || [];
+            if (toShow.length === 0) return;
+            const speciesToShow = toShow;
             speciesLegend = L.control({ position: 'topright' });
             speciesLegend.onAdd = function() {
                 const div = L.DomUtil.create('div', 'species-legend');
-                div.innerHTML = `<h4>Species Legend</h4>${Object.entries(speciesColors).map(([species, color]) =>
-                    `<div class="species-item"><div class="species-dot" style="background-color: ${color}"></div><span class="species-name">${species.replace('-', ' ')}</span></div>`).join('')}`;
+                div.innerHTML = `
+                    <h4>Species Legend</h4>
+                    ${speciesToShow.map(({ displayName, color }) => `
+                        <div class="species-item">
+                            <div class="species-dot" style="background-color: ${color}"></div>
+                            <span class="species-name">${(displayName || 'Unknown').replace(/</g, '&lt;')}</span>
+                        </div>
+                    `).join('')}
+                `;
                 return div;
             };
             speciesLegend.addTo(map);
@@ -429,7 +582,115 @@
             }
         }
 
+        function hideOkavangoWater() {
+            if (okavangoWaterLayer) {
+                map.removeLayer(okavangoWaterLayer);
+                okavangoWaterLayer = null;
+            }
+        }
+
+        function formatOkavangoDate(yyyymmdd) {
+            if (!yyyymmdd || yyyymmdd.length !== 8) return yyyymmdd;
+            return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
+        }
+
+        function showOkavangoWater(geojson) {
+            hideOkavangoWater();
+            okavangoWaterLayer = L.geoJSON(geojson, {
+                style: {
+                    fillColor: '#58a6ff',
+                    fillOpacity: 0.45,
+                    color: '#58a6ff',
+                    weight: 1,
+                    opacity: 0.7,
+                },
+            }).addTo(map);
+            const bounds = okavangoWaterLayer.getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+        }
+
+        async function fetchOkavangoDateFromFirebase(dateStr) {
+            const url = `${OKAVANGO_FIREBASE}/okavango/water/by_date/${dateStr}.json`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+            const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+            if (!geojson?.type || !Array.isArray(geojson.features)) throw new Error('Invalid GeoJSON');
+            return geojson;
+        }
+
+        async function loadOkavangoDateByIndex(index) {
+            if (okavangoAvailableDates.length === 0) return;
+            const dateStr = okavangoAvailableDates[index];
+            try {
+                const geojson = await fetchOkavangoDateFromFirebase(dateStr);
+                showOkavangoWater(geojson);
+                const label = document.getElementById('okavango-slider-label');
+                if (label) label.textContent = formatOkavangoDate(dateStr);
+            } catch (e) {
+                console.error('Okavango load error:', e);
+            }
+        }
+
+        async function loadOkavangoFromFirebase() {
+            try {
+                const shallowRes = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/by_date.json?shallow=true`);
+                if (!shallowRes.ok) throw new Error(shallowRes.statusText);
+                const byDate = await shallowRes.json();
+                okavangoAvailableDates = Object.keys(byDate || {}).filter(k => /^\d{8}$/.test(k)).sort();
+                const slider = document.getElementById('okavango-date-slider');
+                const label = document.getElementById('okavango-slider-label');
+                if (!slider || !label) return;
+                if (okavangoAvailableDates.length === 0) {
+                    const latestRes = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/latest.json`);
+                    if (!latestRes.ok) throw new Error(latestRes.statusText);
+                    const data = await latestRes.json();
+                    const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+                    if (!geojson?.type || !Array.isArray(geojson.features)) throw new Error('No water data yet');
+                    showOkavangoWater(geojson);
+                    label.textContent = 'Latest';
+                    slider.min = 0;
+                    slider.max = 0;
+                    slider.value = 0;
+                    slider.style.display = 'none';
+                    return;
+                }
+                slider.min = 0;
+                slider.max = Math.max(0, okavangoAvailableDates.length - 1);
+                slider.value = okavangoAvailableDates.length - 1;
+                slider.style.display = '';
+                await loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+            } catch (e) {
+                console.error('Okavango Firebase load error:', e);
+            }
+        }
+
+        function populateSpeciesDropdown(observationsFilteredByDate) {
+            const speciesSelect = document.getElementById('species-select');
+            const currentValue = speciesSelect.value;
+            const speciesInRange = [...new Map(
+                observationsFilteredByDate
+                    .filter(obs => obs.category === 'Sighting' && obs.animal && String(obs.animal).trim())
+                    .map(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        return [key, name];
+                    })
+            ).values()].sort((a, b) => a.localeCompare(b));
+            speciesSelect.innerHTML = '<option value="">All Species</option>' +
+                speciesInRange.map(name => {
+                    const val = name.toLowerCase().replace(/\s+/g, '-');
+                    return `<option value="${val}">${name.replace(/</g, '&lt;')}</option>`;
+                }).join('');
+            if (speciesInRange.some(s => s.toLowerCase().replace(/\s+/g, '-') === currentValue)) {
+                speciesSelect.value = currentValue;
+            } else {
+                speciesSelect.value = '';
+            }
+        }
+
         function applyFilters() {
+            if (currentView === 'water-monitoring') return;
             observationsLayer.clearLayers();
             clearLatestMarkers();
 
@@ -438,7 +699,7 @@
             const selectedMonth = document.getElementById('month-select').value;
             const selectedYear = document.getElementById('year-select').value;
 
-            const filteredObservations = allObservations.filter(obs => {
+            const observationsFilteredByDate = allObservations.filter(obs => {
                 if (currentView === 'sightings' && obs.category !== 'Sighting') return false;
                 if (currentView === 'maintenance' && obs.category !== 'Maintenance') return false;
                 if (startDate || endDate) {
@@ -451,18 +712,24 @@
                     if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
                     if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
                 }
-                if (currentView === 'sightings') {
-                    const selectedSpecies = document.getElementById('species-select').value;
-                    if (selectedSpecies) {
-                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
-                        const filterSpecies = selectedSpecies.toLowerCase().trim();
-                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
-                        const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
-                        if (!obsAnimal.includes(filterSpecies) && !obsAnimalNormalized.includes(filterNormalized) && obsAnimal !== filterSpecies) return false;
-                    }
-                }
                 return true;
             });
+
+            if (currentView === 'sightings') populateSpeciesDropdown(observationsFilteredByDate);
+
+            let filteredObservations = observationsFilteredByDate;
+            if (currentView === 'sightings') {
+                const selectedSpecies = document.getElementById('species-select').value;
+                if (selectedSpecies) {
+                    const filterSpecies = selectedSpecies.toLowerCase().trim();
+                    const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
+                    filteredObservations = observationsFilteredByDate.filter(obs => {
+                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
+                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
+                        return obsAnimal.includes(filterSpecies) || obsAnimalNormalized.includes(filterNormalized) || obsAnimal === filterSpecies;
+                    });
+                }
+            }
 
             if (displayMode === 'hotspot') {
                 const hotspotObservations = filteredObservations.filter(obs => obs.latitude && obs.longitude);
@@ -479,12 +746,12 @@
                         let icon, popupContent;
                         if (observation.category === 'Sighting') {
                             const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
-                            const speciesColor = speciesColors[animalName] || '#8B4513';
+                            const speciesColor = getColorForSpecies(observation.animal);
                             icon = createCustomIcon(speciesColor);
-                            popupContent = `<strong>Animal Sighting</strong><br><strong>Species:</strong> ${observation.animal || 'Unknown'}<br><strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br><strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}`;
+                            popupContent = formatObservationPopup(observation);
                         } else {
-                            icon = maintenanceIcon;
-                            popupContent = `<strong>Maintenance Activity</strong><br><strong>Type:</strong> ${observation.maintenance_type || 'Unknown'}<br><strong>Time:</strong> ${new Date(observation.timestamp).toLocaleString()}<br><strong>Location:</strong> ${observation.latitude.toFixed(4)}, ${observation.longitude.toFixed(4)}`;
+                            icon = getMaintenanceIcon(observation);
+                            popupContent = formatObservationPopup(observation);
                         }
                         const marker = L.marker([observation.latitude, observation.longitude], { icon }).bindPopup(popupContent);
                         marker.addTo(observationsLayer);
@@ -493,8 +760,25 @@
             }
 
             applyLatestFilters();
-            updateStats();
-            if (currentView === 'sightings' && displayMode === 'actual') showSpeciesLegend();
+            const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
+            updateStats(filteredPointCount);
+            if (currentView === 'sightings' && displayMode === 'actual') {
+                const speciesMap = new Map();
+                filteredObservations
+                    .filter(obs => obs.category === 'Sighting' && obs.animal)
+                    .forEach(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        if (name && !speciesMap.has(key)) {
+                            speciesMap.set(key, { displayName: name, color: getColorForSpecies(name) });
+                        }
+                    });
+                const visibleSpecies = [...speciesMap.values()]
+                    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+                    .map(({ displayName, color }) => ({ displayName, color }));
+                lastVisibleSpecies = visibleSpecies;
+                showSpeciesLegend(visibleSpecies);
+            }
         }
 
         function applyLatestFilters() {
@@ -515,7 +799,7 @@
                         iconSize: [8, 8], iconAnchor: [4, 4]
                     });
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`<strong>Recent Sighting (This Week)</strong><br><strong>Species:</strong> ${obs.animal || 'Unknown'}<br><strong>Time:</strong> ${obsDate.toLocaleString()}<br><strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}`);
+                        .bindPopup(formatObservationPopup(obs, '<strong>Recent Sighting (This Week)</strong>'));
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
                 }
@@ -534,17 +818,17 @@
                         iconSize: [8, 8], iconAnchor: [4, 4]
                     });
                     const marker = L.marker([obs.latitude, obs.longitude], { icon: blackPinIcon })
-                        .bindPopup(`<strong>Recent Maintenance (This Week)</strong><br><strong>Type:</strong> ${obs.maintenance_type || 'Unknown'}<br><strong>Time:</strong> ${obsDate.toLocaleString()}<br><strong>Location:</strong> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}`);
+                        .bindPopup(formatObservationPopup(obs, '<strong>Recent Maintenance (This Week)</strong>'));
                     marker.addTo(observationsLayer);
                     latestMarkers.push(marker);
                 }
             });
         }
 
-        function updateStats() {
-            const filteredCount = observationsLayer.getLayers().length - latestMarkers.length;
-            if (currentView === 'sightings') document.getElementById('total-records').textContent = filteredCount;
-            else if (currentView === 'maintenance') document.getElementById('maintenance-records').textContent = filteredCount;
+        function updateStats(filteredPointCount) {
+            const count = typeof filteredPointCount === 'number' ? filteredPointCount : (observationsLayer.getLayers().length - latestMarkers.length);
+            if (currentView === 'sightings') document.getElementById('total-records').textContent = count;
+            else if (currentView === 'maintenance') document.getElementById('maintenance-records').textContent = count;
         }
 
         function setupFilters() {
@@ -552,11 +836,29 @@
                 currentView = this.value;
                 document.getElementById('species-group').style.display = currentView === 'sightings' ? 'block' : 'none';
                 document.getElementById('maintenance-group').style.display = currentView === 'maintenance' ? 'block' : 'none';
+                document.getElementById('water-monitoring-group').style.display = currentView === 'water-monitoring' ? 'block' : 'none';
 
-                if (displayMode === 'actual' && currentView === 'sightings') showSpeciesLegend();
-                else hideSpeciesLegend();
+                const allControlGroups = document.querySelectorAll('.control-group');
+                if (currentView === 'water-monitoring') {
+                    allControlGroups[1].style.display = 'none';
+                    allControlGroups[2].style.display = 'none';
+                } else {
+                    allControlGroups[1].style.display = 'block';
+                    allControlGroups[2].style.display = 'block';
+                }
 
-                applyFilters();
+                if (currentView === 'water-monitoring') {
+                    hideOkavangoWater();
+                    observationsLayer.clearLayers();
+                    clearLatestMarkers();
+                    loadOkavangoFromFirebase();
+                    hideSpeciesLegend();
+                } else {
+                    hideOkavangoWater();
+                    applyFilters();
+                    if (displayMode === 'actual' && currentView === 'sightings') showSpeciesLegend();
+                    else hideSpeciesLegend();
+                }
             });
 
             document.getElementById('display-mode-toggle').addEventListener('change', function() {
@@ -576,6 +878,28 @@
 
             ['latest-sightings-toggle', 'latest-maintenance-toggle'].forEach(id => {
                 document.getElementById(id).addEventListener('change', applyLatestFilters);
+            });
+
+            document.getElementById('okavango-date-slider').addEventListener('input', (e) => {
+                loadOkavangoDateByIndex(parseInt(e.target.value, 10));
+            });
+            document.getElementById('okavango-show-latest').addEventListener('click', async () => {
+                if (okavangoAvailableDates.length > 0) {
+                    const slider = document.getElementById('okavango-date-slider');
+                    slider.value = okavangoAvailableDates.length - 1;
+                    loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+                } else {
+                    try {
+                        const res = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/latest.json`);
+                        if (!res.ok) throw new Error(res.statusText);
+                        const data = await res.json();
+                        const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+                        showOkavangoWater(geojson);
+                        document.getElementById('okavango-slider-label').textContent = 'Latest';
+                    } catch (e) {
+                        console.error('Okavango latest load error:', e);
+                    }
+                }
             });
         }
 
