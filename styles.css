@@ -504,6 +504,7 @@ input:checked + .slider .switch-text {
     padding: 25px;
     flex: 1;
     overflow-y: auto;
+    min-height: 600px;
 }
 
 /* SVG marker icons (skull, no_entry, saw_maintenance) */
