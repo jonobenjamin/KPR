@@ -40,7 +40,7 @@
             cursor: pointer;
         }
         .show-weather-btn:hover { text-decoration: underline; }
-        .poi-x-icon { background: none !important; border: none !important; }
+        .poi-dot-icon { background: none !important; border: none !important; }
     </style>
 </head>
 <body>
@@ -701,14 +701,26 @@
             }
         }
 
+        const POI_MIN_ZOOM = 14;
+
+        function updatePOIVisibility() {
+            const show = map.getZoom() >= POI_MIN_ZOOM;
+            poiLayer.eachLayer(layer => {
+                if (layer._icon) {
+                    layer._icon.style.opacity = show ? 1 : 0;
+                    layer._icon.style.pointerEvents = show ? 'auto' : 'none';
+                }
+            });
+        }
+
         async function loadPOI() {
             try {
                 const response = await fetch('data/geojson/POI.geojson');
                 if (!response.ok) throw new Error(`POI file not found: ${response.status}`);
                 const geoJson = await response.json();
                 const poiIcon = L.divIcon({
-                    className: 'poi-x-icon',
-                    html: '<span style="font-size:14px;font-weight:bold;color:#333;line-height:1;">✕</span>',
+                    className: 'poi-dot-icon',
+                    html: '<div style="width:10px;height:10px;border:2px solid #333;border-radius:50%;background:#000;box-sizing:border-box;"></div>',
                     iconSize: [14, 14],
                     iconAnchor: [7, 7]
                 });
@@ -719,6 +731,8 @@
                         layer.bindPopup(`<strong>${name.replace(/</g, '&lt;')}</strong>`);
                     }
                 }).addTo(poiLayer);
+                map.on('zoomend', updatePOIVisibility);
+                updatePOIVisibility();
             } catch (error) {
                 console.error('Error loading POI:', error);
                 showError('Failed to load POI data');
