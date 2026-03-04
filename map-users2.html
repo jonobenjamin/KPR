@@ -34,12 +34,13 @@
             cursor: pointer;
         }
         .show-weather-btn:hover { text-decoration: underline; }
+        .poi-dot-icon { background: none !important; border: none !important; }
     </style>
 </head>
 <body>
     <!-- Top Ribbon -->
     <div class="top-ribbon">
-        <h1>Khwai Private Reserve - Wildlife Map</h1>
+        <h1 style="display: flex; align-items: center; gap: 10px;"><img src="data/icons/KPR.svg" alt="" style="width: 72px; height: 72px; flex-shrink: 0;">Khwai Private Reserve - Wildlife Map</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
             <a href="#" onclick="window.firebasePortal?.signOut?.(window.firebasePortal.auth).then(()=>location.href='login.html'); return false;" class="submit-data-btn" style="background: #666;">Sign Out</a>
         </div>
@@ -133,16 +134,6 @@
                 <div class="species-filter">
                     <select id="species-select">
                         <option value="">All Species</option>
-                        <option value="elephant">Elephant</option>
-                        <option value="lion">Lion</option>
-                        <option value="leopard">Leopard</option>
-                        <option value="buffalo">Buffalo</option>
-                        <option value="giraffe">Giraffe</option>
-                        <option value="zebra">Zebra</option>
-                        <option value="wild-dog">Wild Dog</option>
-                        <option value="hyena">Hyena</option>
-                        <option value="cheetah">Cheetah</option>
-                        <option value="hippo">Hippo</option>
                     </select>
                 </div>
 
@@ -231,7 +222,9 @@
         }).addTo(map);
 
         const boundaryLayer = L.layerGroup().addTo(map);
+        const riversLayer = L.layerGroup().addTo(map);
         const roadsLayer = L.layerGroup().addTo(map);
+        const poiLayer = L.layerGroup().addTo(map);
         const campsLayer = L.layerGroup().addTo(map);
         const observationsLayer = L.layerGroup().addTo(map);
 
@@ -322,7 +315,14 @@
         const DEFAULT_SPECIES_COLOR = '#8B4513';
         function getColorForSpecies(animalName) {
             const key = (animalName || '').toLowerCase().replace(/\s+/g, '-');
-            return speciesColors[key] || DEFAULT_SPECIES_COLOR;
+            if (speciesColors[key]) return speciesColors[key];
+            if (!animalName || !String(animalName).trim()) return DEFAULT_SPECIES_COLOR;
+            let hash = 0;
+            for (let i = 0; i < key.length; i++) {
+                hash = key.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = Math.abs(hash % 360);
+            return `hsl(${hue}, 65%, 45%)`;
         }
 
         function hideLoading() {
@@ -377,6 +377,63 @@
             const start = coords[0], end = coords[coords.length - 1];
             const angle = Math.atan2(end[1] - start[1], end[0] - start[0]) * (180 / Math.PI);
             return (angle > 90 || angle < -90);
+        }
+
+        async function loadRivers() {
+            try {
+                const response = await fetch('data/geojson/Rivers.geojson');
+                if (!response.ok) throw new Error(`Rivers file not found: ${response.status}`);
+                const geoJson = await response.json();
+                L.geoJSON(geoJson, {
+                    style: { color: '#2563eb', weight: 2, opacity: 0.9 }
+                }).addTo(riversLayer);
+            } catch (error) {
+                console.error('Error loading rivers:', error);
+                showError('Failed to load rivers data');
+            }
+        }
+
+        const POI_MIN_ZOOM = 14;
+
+        function updatePOIVisibility() {
+            const show = map.getZoom() >= POI_MIN_ZOOM;
+            poiLayer.eachLayer(geoJsonGroup => {
+                if (geoJsonGroup.eachLayer) {
+                    geoJsonGroup.eachLayer(marker => {
+                        if (marker._icon) {
+                            marker._icon.style.opacity = show ? 1 : 0;
+                            marker._icon.style.visibility = show ? 'visible' : 'hidden';
+                            marker._icon.style.pointerEvents = show ? 'auto' : 'none';
+                        }
+                    });
+                }
+            });
+        }
+
+        async function loadPOI() {
+            try {
+                const response = await fetch('data/geojson/POI.geojson');
+                if (!response.ok) throw new Error(`POI file not found: ${response.status}`);
+                const geoJson = await response.json();
+                const poiIcon = L.divIcon({
+                    className: 'poi-dot-icon',
+                    html: '<div style="width:14px;height:14px;border:2px solid #000;border-radius:50%;display:flex;align-items:center;justify-content:center;background:transparent;"><div style="width:4px;height:4px;background:#000;border-radius:50%;"></div></div>',
+                    iconSize: [18, 18],
+                    iconAnchor: [9, 9]
+                });
+                L.geoJSON(geoJson, {
+                    pointToLayer: (feature, latlng) => L.marker(latlng, { icon: poiIcon }),
+                    onEachFeature: (feature, layer) => {
+                        const name = feature.properties?.Name || 'POI';
+                        layer.bindPopup(`<strong>${name.replace(/</g, '&lt;')}</strong>`);
+                    }
+                }).addTo(poiLayer);
+                map.on('zoomend', updatePOIVisibility);
+                updatePOIVisibility();
+            } catch (error) {
+                console.error('Error loading POI:', error);
+                showError('Failed to load POI data');
+            }
         }
 
         async function loadRoads() {
@@ -538,7 +595,7 @@
 
         async function initMap() {
             try {
-                await Promise.all([loadBoundary(), loadRoads(), loadCamps(), loadObservations()]);
+                await Promise.all([loadBoundary(), loadRivers(), loadRoads(), loadPOI(), loadCamps(), loadObservations()]);
                 hideLoading();
                 if (currentView === 'sightings' && displayMode === 'actual') showSpeciesLegend();
             } catch (error) {
@@ -597,19 +654,21 @@
             return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
         }
 
-        function showOkavangoWater(geojson) {
+        function showOkavangoWater(geojson, fitToBounds = true) {
             hideOkavangoWater();
             okavangoWaterLayer = L.geoJSON(geojson, {
                 style: {
-                    fillColor: '#58a6ff',
+                    fillColor: '#1d4ed8',
                     fillOpacity: 0.45,
-                    color: '#58a6ff',
+                    color: '#1d4ed8',
                     weight: 1,
                     opacity: 0.7,
                 },
             }).addTo(map);
-            const bounds = okavangoWaterLayer.getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+            if (fitToBounds) {
+                const bounds = okavangoWaterLayer.getBounds();
+                if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+            }
         }
 
         async function fetchOkavangoDateFromFirebase(dateStr) {
@@ -622,12 +681,12 @@
             return geojson;
         }
 
-        async function loadOkavangoDateByIndex(index) {
+        async function loadOkavangoDateByIndex(index, fitToBounds = false) {
             if (okavangoAvailableDates.length === 0) return;
             const dateStr = okavangoAvailableDates[index];
             try {
                 const geojson = await fetchOkavangoDateFromFirebase(dateStr);
-                showOkavangoWater(geojson);
+                showOkavangoWater(geojson, fitToBounds);
                 const label = document.getElementById('okavango-slider-label');
                 if (label) label.textContent = formatOkavangoDate(dateStr);
             } catch (e) {
@@ -662,9 +721,33 @@
                 slider.max = Math.max(0, okavangoAvailableDates.length - 1);
                 slider.value = okavangoAvailableDates.length - 1;
                 slider.style.display = '';
-                await loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+                await loadOkavangoDateByIndex(okavangoAvailableDates.length - 1, true);
             } catch (e) {
                 console.error('Okavango Firebase load error:', e);
+            }
+        }
+
+        function populateSpeciesDropdown(observationsFilteredByDate) {
+            const speciesSelect = document.getElementById('species-select');
+            const currentValue = speciesSelect.value;
+            const speciesInRange = [...new Map(
+                observationsFilteredByDate
+                    .filter(obs => obs.category === 'Sighting' && obs.animal && String(obs.animal).trim())
+                    .map(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        return [key, name];
+                    })
+            ).values()].sort((a, b) => a.localeCompare(b));
+            speciesSelect.innerHTML = '<option value="">All Species</option>' +
+                speciesInRange.map(name => {
+                    const val = name.toLowerCase().replace(/\s+/g, '-');
+                    return `<option value="${val}">${name.replace(/</g, '&lt;')}</option>`;
+                }).join('');
+            if (speciesInRange.some(s => s.toLowerCase().replace(/\s+/g, '-') === currentValue)) {
+                speciesSelect.value = currentValue;
+            } else {
+                speciesSelect.value = '';
             }
         }
 
@@ -678,7 +761,7 @@
             const selectedMonth = document.getElementById('month-select').value;
             const selectedYear = document.getElementById('year-select').value;
 
-            const filteredObservations = allObservations.filter(obs => {
+            const observationsFilteredByDate = allObservations.filter(obs => {
                 if (currentView === 'sightings' && obs.category !== 'Sighting') return false;
                 if (currentView === 'maintenance' && obs.category !== 'Maintenance') return false;
                 if (startDate || endDate) {
@@ -691,18 +774,24 @@
                     if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
                     if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
                 }
-                if (currentView === 'sightings') {
-                    const selectedSpecies = document.getElementById('species-select').value;
-                    if (selectedSpecies) {
-                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
-                        const filterSpecies = selectedSpecies.toLowerCase().trim();
-                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
-                        const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
-                        if (!obsAnimal.includes(filterSpecies) && !obsAnimalNormalized.includes(filterNormalized) && obsAnimal !== filterSpecies) return false;
-                    }
-                }
                 return true;
             });
+
+            if (currentView === 'sightings') populateSpeciesDropdown(observationsFilteredByDate);
+
+            let filteredObservations = observationsFilteredByDate;
+            if (currentView === 'sightings') {
+                const selectedSpecies = document.getElementById('species-select').value;
+                if (selectedSpecies) {
+                    const filterSpecies = selectedSpecies.toLowerCase().trim();
+                    const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
+                    filteredObservations = observationsFilteredByDate.filter(obs => {
+                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
+                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
+                        return obsAnimal.includes(filterSpecies) || obsAnimalNormalized.includes(filterNormalized) || obsAnimal === filterSpecies;
+                    });
+                }
+            }
 
             if (displayMode === 'hotspot') {
                 const hotspotObservations = filteredObservations.filter(obs => obs.latitude && obs.longitude);
