@@ -725,9 +725,9 @@
                 const geoJson = await response.json();
                 const poiIcon = L.divIcon({
                     className: 'poi-dot-icon',
-                    html: '<div style="width:10px;height:10px;border:2px solid #333;border-radius:50%;background:#000;box-sizing:border-box;"></div>',
-                    iconSize: [14, 14],
-                    iconAnchor: [7, 7]
+                    html: '<div style="width:14px;height:14px;border:2px solid #000;border-radius:50%;display:flex;align-items:center;justify-content:center;background:transparent;"><div style="width:4px;height:4px;background:#000;border-radius:50%;"></div></div>',
+                    iconSize: [18, 18],
+                    iconAnchor: [9, 9]
                 });
                 L.geoJSON(geoJson, {
                     pointToLayer: (feature, latlng) => L.marker(latlng, { icon: poiIcon }),
