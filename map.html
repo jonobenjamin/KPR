@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Khwai Private Reserve Monitoring Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data/icons/KPR.svg">
     <link rel="icon" type="image/png" href="data/icons/KPR_icon.png">
     <script type="module" src="js/firebase-config.js"></script>
     <script src="js/auth-portal.js"></script>
@@ -30,12 +31,21 @@
         .leaflet-text-path {
             pointer-events: none;
         }
+        .show-weather-btn {
+            display: inline-block;
+            margin-top: 6px;
+            color: #1e90ff;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .show-weather-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <!-- Top Ribbon -->
     <div class="top-ribbon">
-        <h1>Khwai Private Reserve Monitoring Dashboard</h1>
+        <h1 style="display: flex; align-items: center; gap: 10px;"><img src="data/icons/KPR.svg" alt="" style="width: 36px; height: 36px; flex-shrink: 0;">Khwai Private Reserve Monitoring Dashboard</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
             <a href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
                 Admin Panel
@@ -70,6 +80,7 @@
                     <option value="trees">Trees</option>
                     <option value="maintenance">Maintenance</option>
                     <option value="incidents">Incidents</option>
+                    <option value="water-quality">Water Quality</option>
                     <option value="water-monitoring">Water Monitoring</option>
                     <option value="fires">Fires</option>
                 </select>
@@ -138,16 +149,6 @@
                 <div class="species-filter">
                     <select id="species-select">
                         <option value="">All Species</option>
-                        <option value="elephant">Elephant</option>
-                        <option value="lion">Lion</option>
-                        <option value="leopard">Leopard</option>
-                        <option value="buffalo">Buffalo</option>
-                        <option value="giraffe">Giraffe</option>
-                        <option value="zebra">Zebra</option>
-                        <option value="wild-dog">Wild Dog</option>
-                        <option value="hyena">Hyena</option>
-                        <option value="cheetah">Cheetah</option>
-                        <option value="hippo">Hippo</option>
                     </select>
                 </div>
 
@@ -241,9 +242,9 @@
                 </div>
             </div>
 
-            <!-- Water Monitoring Data Entry -->
-            <div class="control-group" id="water-monitoring-group" style="display: none;">
-                <h4>Water Monitoring</h4>
+            <!-- Water Quality Data Entry (Tuludi, Sable Alley, Little Sable) -->
+            <div class="control-group" id="water-quality-group" style="display: none;">
+                <h4>Water Quality</h4>
 
                 <!-- Location Selection -->
                 <div class="form-group">
@@ -309,6 +310,17 @@
                 </div>
             </div>
 
+            <!-- Water Monitoring - Okavango Delta Flood -->
+            <div class="control-group" id="water-monitoring-group" style="display: none;">
+                <h4>Okavango Delta Flood Extent</h4>
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 12px;">Browse water extent by date. Opens with latest.</p>
+                <div class="okavango-slider-row">
+                    <label for="okavango-date-slider" id="okavango-slider-label" style="font-size: 0.85rem; display: block; margin-bottom: 6px;">—</label>
+                    <input type="range" id="okavango-date-slider" min="0" max="0" value="0" style="width: 100%; accent-color: #3498db;" />
+                </div>
+                <button id="okavango-show-latest" class="btn-submit" style="margin-top: 10px; width: 100%;">Show Latest</button>
+            </div>
+
             <!-- Fire Data Controls -->
             <div class="control-group" id="fires-group" style="display: none;">
                 <h4>Fire Data</h4>
@@ -349,7 +361,7 @@
 
     <!-- Bottom Ribbon -->
     <div class="bottom-ribbon">
-        <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@jonathan Benjamin</a></p>
+        <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@Jonathan Benjamin</a></p>
     </div>
     </div>
 
@@ -509,6 +521,11 @@
 
         // Water monitoring markers
         let waterMonitoringMarkers = [];
+
+        // Okavango Delta flood extent
+        const OKAVANGO_FIREBASE = 'https://okavango-delta-water-default-rtdb.firebaseio.com';
+        let okavangoWaterLayer = null;
+        let okavangoAvailableDates = [];
 
         // Simple marker icons - just colored points
         const createCustomIcon = (color) => {
@@ -729,6 +746,35 @@
             }
         }
 
+        function formatCampWeather(data) {
+            const ts = data?.properties?.timeseries;
+            if (!ts || ts.length === 0) return '<em>No forecast data</em>';
+            const now = ts[0];
+            const inst = now?.data?.instant?.details || {};
+            const next1 = now?.data?.next_1_hours || now?.data?.next_6_hours || {};
+            const sym = (next1?.summary?.symbol_code || 'unknown').replace(/_/g, ' ');
+            let html = `<strong>Now:</strong> ${Math.round(inst.air_temperature ?? 0)}°C, ${sym}<br>`;
+            html += `Humidity: ${Math.round(inst.relative_humidity ?? 0)}% | Wind: ${(inst.wind_speed ?? 0).toFixed(1)} m/s<br>`;
+            html += `<strong>Forecast:</strong><br>`;
+            const byDay = new Map();
+            for (const t of ts) {
+                const dateKey = t.time.slice(0, 10);
+                if (!byDay.has(dateKey)) byDay.set(dateKey, t);
+            }
+            const dayEntries = Array.from(byDay.values()).slice(0, 6);
+            const today = new Date().toISOString().slice(0, 10);
+            for (const t of dayEntries) {
+                const dateKey = t.time.slice(0, 10);
+                const d = new Date(t.time);
+                const dayLabel = dateKey === today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'short' });
+                const temp = t?.data?.instant?.details?.air_temperature;
+                const sym2 = (t?.data?.next_1_hours || t?.data?.next_6_hours || t?.data?.next_12_hours)?.summary?.symbol_code || '—';
+                html += `${dayLabel}: ${Math.round(temp ?? 0)}°C, ${String(sym2).replace(/_/g, ' ')}<br>`;
+            }
+            html += `<br><small>Data from <a href="https://www.met.no/" target="_blank" rel="noopener">MET Norway</a></small>`;
+            return html;
+        }
+
         // Load camps from local file
         async function loadCamps() {
             try {
@@ -754,7 +800,34 @@
                     },
                     onEachFeature: function(feature, layer) {
                         const campName = feature.properties?.Camps || 'Camp';
-                        layer.bindPopup(`<strong>${campName}</strong><br><em>Camp Location</em>`);
+                        const latlng = layer.getLatLng();
+                        const initialHtml = `<strong>${campName}</strong><br><em>Camp Location</em><br><a href="#" class="show-weather-btn">Weather ▸</a>`;
+                        layer.bindPopup(initialHtml);
+                        layer.on('popupclose', function() { layer.setPopupContent(initialHtml); });
+                        layer.on('popupopen', function() {
+                            const btn = document.querySelector('.leaflet-popup-content .show-weather-btn');
+                            if (btn && !btn.dataset.bound) {
+                                btn.dataset.bound = '1';
+                                btn.addEventListener('click', async function(e) {
+                                    e.preventDefault();
+                                    btn.textContent = 'Loading…';
+                                    const lat = latlng.lat.toFixed(4);
+                                    const lon = latlng.lng.toFixed(4);
+                                    try {
+                                        const res = await fetch(
+                                            `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
+                                            { headers: { 'User-Agent': 'KPR-Monitoring-Dashboard/1.0 jonobenjamingis@gmail.com' } }
+                                        );
+                                        if (!res.ok) throw new Error(res.statusText);
+                                        const data = await res.json();
+                                        const weatherHtml = formatCampWeather(data);
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br>${weatherHtml}`);
+                                    } catch (err) {
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br><em style="color:#c00;">Weather unavailable: ${err.message}</em>`);
+                                    }
+                                });
+                            }
+                        });
                     }
                 }).addTo(campsLayer);
 
@@ -917,22 +990,35 @@
             latestMarkers = [];
         }
 
-        function showSpeciesLegend(visibleSpecies) {
+        // Default color for species not in speciesColors
+        const DEFAULT_SPECIES_COLOR = '#8B4513';
+
+        function getColorForSpecies(animalName) {
+            const key = (animalName || '').toLowerCase().replace(/\s+/g, '-');
+            if (speciesColors[key]) return speciesColors[key];
+            if (!animalName || !String(animalName).trim()) return DEFAULT_SPECIES_COLOR;
+            let hash = 0;
+            for (let i = 0; i < key.length; i++) {
+                hash = key.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = Math.abs(hash % 360);
+            return `hsl(${hue}, 65%, 45%)`;
+        }
+
+        function showSpeciesLegend(visibleSpeciesList) {
             // Remove existing legend
             if (speciesLegend) {
                 map.removeControl(speciesLegend);
             }
 
-            // Use passed species or last computed (for callers that don't have filtered data)
-            const toShow = visibleSpecies != null ? visibleSpecies : lastVisibleSpecies;
+            // Use passed list or last computed (for callers that don't have filtered data)
+            const toShow = visibleSpeciesList != null ? visibleSpeciesList : lastVisibleSpecies;
             lastVisibleSpecies = toShow || [];
 
-            // Filter to only species visible on map (by date range, filters, etc.)
-            const speciesToShow = toShow && toShow.length > 0
-                ? Object.entries(speciesColors).filter(([species]) => toShow.includes(species))
-                : Object.entries(speciesColors);
+            if (toShow.length === 0) return;
 
-            if (speciesToShow.length === 0) return;
+            // toShow is array of { displayName, color } - use observation's actual Species name
+            const speciesToShow = toShow;
 
             // Create new legend
             speciesLegend = L.control({ position: 'topright' });
@@ -941,10 +1027,10 @@
                 const div = L.DomUtil.create('div', 'species-legend');
                 div.innerHTML = `
                     <h4>Species Legend</h4>
-                    ${speciesToShow.map(([species, color]) => `
+                    ${speciesToShow.map(({ displayName, color }) => `
                         <div class="species-item">
                             <div class="species-dot" style="background-color: ${color}"></div>
-                            <span class="species-name">${species.replace('-', ' ')}</span>
+                            <span class="species-name">${(displayName || 'Unknown').replace(/</g, '&lt;')}</span>
                         </div>
                     `).join('')}
                 `;
@@ -1066,6 +1152,90 @@
                 }
             });
             waterMonitoringMarkers = [];
+        }
+
+        // ——— Okavango Delta Flood Extent ———
+        function hideOkavangoWater() {
+            if (okavangoWaterLayer) {
+                map.removeLayer(okavangoWaterLayer);
+                okavangoWaterLayer = null;
+            }
+        }
+
+        function formatOkavangoDate(yyyymmdd) {
+            if (!yyyymmdd || yyyymmdd.length !== 8) return yyyymmdd;
+            return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
+        }
+
+        function showOkavangoWater(geojson, dateLabel) {
+            hideOkavangoWater();
+            okavangoWaterLayer = L.geoJSON(geojson, {
+                style: {
+                    fillColor: '#58a6ff',
+                    fillOpacity: 0.45,
+                    color: '#58a6ff',
+                    weight: 1,
+                    opacity: 0.7,
+                },
+            }).addTo(map);
+            const bounds = okavangoWaterLayer.getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+        }
+
+        async function fetchOkavangoDateFromFirebase(dateStr) {
+            const url = `${OKAVANGO_FIREBASE}/okavango/water/by_date/${dateStr}.json`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+            const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+            if (!geojson?.type || !Array.isArray(geojson.features)) throw new Error('Invalid GeoJSON');
+            return geojson;
+        }
+
+        async function loadOkavangoDateByIndex(index) {
+            if (okavangoAvailableDates.length === 0) return;
+            const dateStr = okavangoAvailableDates[index];
+            try {
+                const geojson = await fetchOkavangoDateFromFirebase(dateStr);
+                showOkavangoWater(geojson, formatOkavangoDate(dateStr));
+                const label = document.getElementById('okavango-slider-label');
+                if (label) label.textContent = formatOkavangoDate(dateStr);
+            } catch (e) {
+                console.error('Okavango load error:', e);
+            }
+        }
+
+        async function loadOkavangoFromFirebase() {
+            try {
+                const shallowRes = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/by_date.json?shallow=true`);
+                if (!shallowRes.ok) throw new Error(shallowRes.statusText);
+                const byDate = await shallowRes.json();
+                okavangoAvailableDates = Object.keys(byDate || {}).filter(k => /^\d{8}$/.test(k)).sort();
+                const slider = document.getElementById('okavango-date-slider');
+                const label = document.getElementById('okavango-slider-label');
+                if (!slider || !label) return;
+                if (okavangoAvailableDates.length === 0) {
+                    const latestRes = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/latest.json`);
+                    if (!latestRes.ok) throw new Error(latestRes.statusText);
+                    const data = await latestRes.json();
+                    const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+                    if (!geojson?.type || !Array.isArray(geojson.features)) throw new Error('No water data yet');
+                    showOkavangoWater(geojson, 'Latest');
+                    label.textContent = 'Latest';
+                    slider.min = 0;
+                    slider.max = 0;
+                    slider.value = 0;
+                    slider.style.display = 'none';
+                    return;
+                }
+                slider.min = 0;
+                slider.max = Math.max(0, okavangoAvailableDates.length - 1);
+                slider.value = okavangoAvailableDates.length - 1;
+                slider.style.display = '';
+                await loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+            } catch (e) {
+                console.error('Okavango Firebase load error:', e);
+            }
         }
 
         // Show water monitoring graph for a location
@@ -1366,77 +1536,72 @@
         }
 
 
+        function populateSpeciesDropdown(observationsFilteredByDate) {
+            const speciesSelect = document.getElementById('species-select');
+            const currentValue = speciesSelect.value;
+            const speciesInRange = [...new Map(
+                observationsFilteredByDate
+                    .filter(obs => obs.category === 'Sighting' && obs.animal && String(obs.animal).trim())
+                    .map(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        return [key, name];
+                    })
+            ).values()].sort((a, b) => a.localeCompare(b));
+            speciesSelect.innerHTML = '<option value="">All Species</option>' +
+                speciesInRange.map(name => {
+                    const val = name.toLowerCase().replace(/\s+/g, '-');
+                    return `<option value="${val}">${name.replace(/</g, '&lt;')}</option>`;
+                }).join('');
+            if (speciesInRange.some(s => s.toLowerCase().replace(/\s+/g, '-') === currentValue)) {
+                speciesSelect.value = currentValue;
+            } else {
+                speciesSelect.value = '';
+            }
+        }
+
         function applyFilters() {
             // Clear all markers first
             observationsLayer.clearLayers();
             clearLatestMarkers();
 
-            // Debug species filtering
-            if (currentView === 'sightings') {
-                const selectedSpecies = document.getElementById('species-select').value;
-                console.log('Species filter:', selectedSpecies);
-            }
-
-            // Apply date filters
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
             const selectedMonth = document.getElementById('month-select').value;
             const selectedYear = document.getElementById('year-select').value;
 
-            // Filter observations based on current view and filters
-            const filteredObservations = allObservations.filter(obs => {
-                // View filter
+            const observationsFilteredByDate = allObservations.filter(obs => {
                 if (currentView === 'sightings' && obs.category !== 'Sighting') return false;
                 if (currentView === 'maintenance' && obs.category !== 'Maintenance') return false;
                 if (currentView === 'incidents' && obs.category !== 'Incident') return false;
-
-                // Date range filter
                 if (startDate || endDate) {
                     const obsDate = new Date(obs.timestamp);
                     if (startDate && obsDate < new Date(startDate)) return false;
                     if (endDate && obsDate > new Date(endDate + 'T23:59:59')) return false;
                 }
-
-                // Month/Year filter
                 if (selectedMonth || selectedYear) {
                     const obsDate = new Date(obs.timestamp);
                     if (selectedMonth && obsDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
                     if (selectedYear && obsDate.getFullYear() !== parseInt(selectedYear)) return false;
                 }
-
-                // Species filter (sightings only)
-                if (currentView === 'sightings') {
-                    const selectedSpecies = document.getElementById('species-select').value;
-                    if (selectedSpecies) {
-                        // Case-insensitive comparison
-                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
-                        const filterSpecies = selectedSpecies.toLowerCase().trim();
-
-                        // Handle different formats (spaces vs hyphens)
-                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
-                        const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
-
-                        // Debug logging (only for first few to avoid spam)
-                        if (obs.category === 'Sighting' && Math.random() < 0.1) {
-                            console.log('Species filter debug:', {
-                                original: obs.animal,
-                                normalized: obsAnimal,
-                                filter: filterSpecies,
-                                matches: obsAnimal.includes(filterSpecies) || obsAnimal === filterSpecies
-                            });
-                        }
-
-                        // Check for match
-                        if (!obsAnimal.includes(filterSpecies) &&
-                            !obsAnimalNormalized.includes(filterNormalized) &&
-                            obsAnimal !== filterSpecies) {
-                            return false;
-                        }
-                    }
-                }
-
                 return true;
             });
+
+            if (currentView === 'sightings') populateSpeciesDropdown(observationsFilteredByDate);
+
+            let filteredObservations = observationsFilteredByDate;
+            if (currentView === 'sightings') {
+                const selectedSpecies = document.getElementById('species-select').value;
+                if (selectedSpecies) {
+                    const filterSpecies = selectedSpecies.toLowerCase().trim();
+                    const filterNormalized = filterSpecies.replace(/\s+/g, '-').replace(/-/g, '');
+                    filteredObservations = observationsFilteredByDate.filter(obs => {
+                        const obsAnimal = (obs.animal || '').toLowerCase().trim();
+                        const obsAnimalNormalized = obsAnimal.replace(/\s+/g, '-').replace(/-/g, '');
+                        return obsAnimal.includes(filterSpecies) || obsAnimalNormalized.includes(filterNormalized) || obsAnimal === filterSpecies;
+                    });
+                }
+            }
 
             if (displayMode === 'hotspot') {
                 // Create heat map using Leaflet.heat plugin
@@ -1494,8 +1659,7 @@
 
                             // For actual locations, use species-specific colors for sightings
                             if (displayMode === 'actual' && observation.category === 'Sighting') {
-                                const animalName = (observation.animal || '').toLowerCase().replace(/\s+/g, '-');
-                                const speciesColor = speciesColors[animalName] || '#8B4513';
+                                const speciesColor = getColorForSpecies(observation.animal);
                                 icon = createCustomIcon(speciesColor);
                             }
 
@@ -1517,14 +1681,21 @@
             const filteredPointCount = filteredObservations.filter(obs => obs.latitude && obs.longitude).length;
             updateStats(filteredPointCount);
 
-            // Species legend: only show species visible on map (filtered by date, species filter, etc.)
+            // Species legend: show all species from filtered observations, using actual Species name from data
             if (currentView === 'sightings' && displayMode === 'actual') {
-                const visibleSpecies = [...new Set(
-                    filteredObservations
-                        .filter(obs => obs.category === 'Sighting' && obs.animal)
-                        .map(obs => (obs.animal || '').toLowerCase().replace(/\s+/g, '-'))
-                        .filter(key => speciesColors[key])
-                )];
+                const speciesMap = new Map(); // normalizedKey -> { displayName, color }
+                filteredObservations
+                    .filter(obs => obs.category === 'Sighting' && obs.animal)
+                    .forEach(obs => {
+                        const name = String(obs.animal).trim();
+                        const key = name.toLowerCase().replace(/\s+/g, '-');
+                        if (name && !speciesMap.has(key)) {
+                            speciesMap.set(key, { displayName: name, color: getColorForSpecies(name) });
+                        }
+                    });
+                const visibleSpecies = [...speciesMap.values()]
+                    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+                    .map(({ displayName, color }) => ({ displayName, color }));
                 lastVisibleSpecies = visibleSpecies;
                 showSpeciesLegend(visibleSpecies);
             }
@@ -1894,15 +2065,17 @@
                         currentView === 'maintenance' ? 'block' : 'none';
                     document.getElementById('incidents-group').style.display =
                         currentView === 'incidents' ? 'block' : 'none';
+                    document.getElementById('water-quality-group').style.display =
+                        currentView === 'water-quality' ? 'block' : 'none';
                     document.getElementById('water-monitoring-group').style.display =
                         currentView === 'water-monitoring' ? 'block' : 'none';
                     document.getElementById('fires-group').style.display =
                         currentView === 'fires' ? 'block' : 'none';
 
-                    // Show/hide date controls for water monitoring
+                    // Show/hide date controls for water quality, water monitoring, and trees
                     const allControlGroups = document.querySelectorAll('.control-group');
 
-                    if (currentView === 'water-monitoring' || currentView === 'trees') {
+                    if (currentView === 'water-quality' || currentView === 'water-monitoring' || currentView === 'trees') {
                         // Hide date range (index 1) and month/year (index 2) controls for water monitoring and trees
                         allControlGroups[1].style.display = 'none'; // Date Range
                         allControlGroups[2].style.display = 'none'; // Month & Year
@@ -1924,17 +2097,25 @@
                     }
 
 
-                    // Show water monitoring markers only when water monitoring view is selected
-                    if (currentView === 'water-monitoring') {
+                    // Show water quality markers or Okavango flood layer based on view
+                    if (currentView === 'water-quality') {
+                        hideOkavangoWater();
                         showWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
+                    } else if (currentView === 'water-monitoring') {
+                        hideWaterMonitoringMarkers();
+                        clearSightingsMarkers();
+                        clearFireMarkers();
+                        loadOkavangoFromFirebase();
                     } else if (currentView === 'trees') {
+                        hideOkavangoWater();
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
                         displayTrees();
                     } else if (currentView === 'fires') {
+                        hideOkavangoWater();
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
@@ -1945,6 +2126,7 @@
                             displayFires();
                         }
                     } else {
+                        hideOkavangoWater();
                         hideWaterMonitoringMarkers();
                         clearSightingsMarkers();
                         clearFireMarkers();
@@ -2007,6 +2189,29 @@
 
             // Water monitoring submit button
             document.getElementById('submit-water-data').addEventListener('click', submitWaterMonitoringData);
+
+            // Okavango flood controls
+            document.getElementById('okavango-date-slider').addEventListener('input', (e) => {
+                loadOkavangoDateByIndex(parseInt(e.target.value, 10));
+            });
+            document.getElementById('okavango-show-latest').addEventListener('click', async () => {
+                if (okavangoAvailableDates.length > 0) {
+                    const slider = document.getElementById('okavango-date-slider');
+                    slider.value = okavangoAvailableDates.length - 1;
+                    loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+                } else {
+                    try {
+                        const res = await fetch(`${OKAVANGO_FIREBASE}/okavango/water/latest.json`);
+                        if (!res.ok) throw new Error(res.statusText);
+                        const data = await res.json();
+                        const geojson = typeof data?.geojson === 'string' ? JSON.parse(data.geojson) : data;
+                        showOkavangoWater(geojson, 'Latest');
+                        document.getElementById('okavango-slider-label').textContent = 'Latest';
+                    } catch (e) {
+                        console.error('Okavango latest load error:', e);
+                    }
+                }
+            });
 
             // Fire controls
             document.getElementById('fire-sensor-select').addEventListener('change', displayFires);
