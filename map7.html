@@ -705,10 +705,15 @@
 
         function updatePOIVisibility() {
             const show = map.getZoom() >= POI_MIN_ZOOM;
-            poiLayer.eachLayer(layer => {
-                if (layer._icon) {
-                    layer._icon.style.opacity = show ? 1 : 0;
-                    layer._icon.style.pointerEvents = show ? 'auto' : 'none';
+            poiLayer.eachLayer(geoJsonGroup => {
+                if (geoJsonGroup.eachLayer) {
+                    geoJsonGroup.eachLayer(marker => {
+                        if (marker._icon) {
+                            marker._icon.style.opacity = show ? 1 : 0;
+                            marker._icon.style.visibility = show ? 'visible' : 'hidden';
+                            marker._icon.style.pointerEvents = show ? 'auto' : 'none';
+                        }
+                    });
                 }
             });
         }
@@ -1224,7 +1229,7 @@
             return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
         }
 
-        function showOkavangoWater(geojson, dateLabel) {
+        function showOkavangoWater(geojson, dateLabel, fitToBounds = true) {
             hideOkavangoWater();
             okavangoWaterLayer = L.geoJSON(geojson, {
                 style: {
@@ -1235,8 +1240,10 @@
                     opacity: 0.7,
                 },
             }).addTo(map);
-            const bounds = okavangoWaterLayer.getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+            if (fitToBounds) {
+                const bounds = okavangoWaterLayer.getBounds();
+                if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+            }
         }
 
         async function fetchOkavangoDateFromFirebase(dateStr) {
@@ -1249,12 +1256,12 @@
             return geojson;
         }
 
-        async function loadOkavangoDateByIndex(index) {
+        async function loadOkavangoDateByIndex(index, fitToBounds = false) {
             if (okavangoAvailableDates.length === 0) return;
             const dateStr = okavangoAvailableDates[index];
             try {
                 const geojson = await fetchOkavangoDateFromFirebase(dateStr);
-                showOkavangoWater(geojson, formatOkavangoDate(dateStr));
+                showOkavangoWater(geojson, formatOkavangoDate(dateStr), fitToBounds);
                 const label = document.getElementById('okavango-slider-label');
                 if (label) label.textContent = formatOkavangoDate(dateStr);
             } catch (e) {
@@ -1289,7 +1296,7 @@
                 slider.max = Math.max(0, okavangoAvailableDates.length - 1);
                 slider.value = okavangoAvailableDates.length - 1;
                 slider.style.display = '';
-                await loadOkavangoDateByIndex(okavangoAvailableDates.length - 1);
+                await loadOkavangoDateByIndex(okavangoAvailableDates.length - 1, true);
             } catch (e) {
                 console.error('Okavango Firebase load error:', e);
             }
