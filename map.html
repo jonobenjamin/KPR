@@ -44,7 +44,7 @@
         .show-weather-btn:hover { text-decoration: underline; }
     </style>
 </head>
-<body>
+<body class="app-layout-corridor">
     <div class="dropdown user-avatar-float">
         <button type="button" class="user-avatar-btn" id="userAvatarMenuBtn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu" aria-haspopup="true">
             <span id="userAvatarInitials">··</span>
@@ -58,21 +58,23 @@
         </ul>
     </div>
 
-    <!-- Top Ribbon -->
-    <div class="top-ribbon">
-        <h1 style="display: flex; align-items: center; gap: 10px;"><img src="data/icons/KPR.svg" alt="" style="width: 72px; height: 72px; flex-shrink: 0;">Khwai Private Reserve Monitoring Dashboard</h1>
-        <div style="display: flex; gap: 15px; align-items: center;">
-            <a href="user-submissions.html" class="submit-data-btn" style="background: #27ae60; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
-                Admin Panel
-            </a>
-            <a href="vehicle-tracker.html" class="submit-data-btn" style="background: #8e44ad; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
-                Vehicle Tracker
-            </a>
-            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" class="submit-data-btn">
-                Submit Data
-            </a>
+    <aside class="app-sidebar" aria-label="Site navigation">
+        <div class="app-sidebar-brand">
+            <img src="data/icons/KPR.svg" alt="" class="app-sidebar-logo" width="40" height="40">
+            <span class="app-sidebar-title">KPR<br>Monitoring</span>
         </div>
-    </div>
+        <nav class="app-sidebar-nav">
+            <a href="map.html" class="app-sidebar-link is-active" aria-current="page">Concession Map</a>
+            <a href="user-submissions.html" class="app-sidebar-link">Admin Panel</a>
+            <a href="vehicle-tracker.html" class="app-sidebar-link">Vehicle Tracker</a>
+            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" rel="noopener noreferrer" class="app-sidebar-link">Submit Data</a>
+        </nav>
+    </aside>
+
+    <div class="app-main-wrap">
+        <header class="app-page-header">
+            <h1 class="app-page-title"><img src="data/icons/KPR.svg" alt="" class="app-page-logo" width="48" height="48">Khwai Private Reserve Monitoring Dashboard</h1>
+        </header>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -391,7 +393,7 @@
     <div class="bottom-ribbon">
         <p>© 2025 Khwai Private Reserve Monitoring System | Developed by <a href="mailto:jonobenjamingis@gmail.com">@Jonathan Benjamin</a></p>
     </div>
-    </div>
+    </div><!-- .app-main-wrap -->
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
