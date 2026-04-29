@@ -74,7 +74,7 @@
     var btn = document.getElementById('userAvatarMenuBtn');
     var ribbon = opts.ribbonSelector
       ? document.querySelector(opts.ribbonSelector)
-      : document.querySelector('.top-ribbon');
+      : (document.querySelector('.app-page-header') || document.querySelector('.top-ribbon'));
     if (ribbon) ribbon.classList.add('has-user-avatar-fixed');
 
     function goLogin() {
