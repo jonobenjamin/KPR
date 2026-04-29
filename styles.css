@@ -13,7 +13,7 @@ body {
 .top-ribbon {
     background: linear-gradient(135deg, #2c3e50, #34495e);
     color: white;
-    padding: 2px 20px;
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -48,7 +48,7 @@ body {
 
 .main-content {
     display: flex;
-    height: calc(100vh - 68px);
+    height: calc(100vh - 80px);
     position: relative;
 }
 
@@ -341,7 +341,7 @@ input:checked + .slider .switch-text {
     background: #2c3e50;
     color: #bdc3c7;
     text-align: center;
-    padding: 8px;
+    padding: 15px;
     font-size: 0.9rem;
     border-top: 1px solid #34495e;
 }
@@ -537,10 +537,10 @@ input:checked + .slider .switch-text {
 .table-view {
     display: none;
     position: fixed;
-    top: 68px;
+    top: 80px;
     left: 0;
     right: 0;
-    bottom: 38px;
+    bottom: 50px;
     background: #f8f9fa;
     z-index: 10000;
     flex-direction: row;
@@ -549,7 +549,7 @@ input:checked + .slider .switch-text {
 
 .main-content {
     display: flex;
-    height: calc(100vh - 68px);
+    height: calc(100vh - 80px);
     position: relative;
 }
 
@@ -569,7 +569,7 @@ input:checked + .slider .switch-text {
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     overflow: auto;
-    height: calc(100vh - 68px - 40px); /* Full height minus ribbon and margins */
+    height: calc(100vh - 80px - 40px); /* Full height minus ribbon and margins */
 }
 
 .table-section #table-loading {
@@ -795,4 +795,57 @@ input:checked + .slider .switch-text {
     .chart-container {
         padding: 20px;
     }
+}
+
+/* Floating user avatar — fixed corner, above Leaflet/popups (~10070 in stack) */
+.top-ribbon.has-user-avatar-fixed {
+    padding-right: 74px;
+    box-sizing: border-box;
+}
+.user-avatar-float {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    left: auto;
+    z-index: 10060;
+}
+.user-avatar-float .user-avatar-btn {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.95);
+    background: linear-gradient(145deg, #526b38, #43512D);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.user-avatar-float .user-avatar-btn:hover {
+    transform: scale(1.04);
+    box-shadow: 0 6px 22px rgba(0,0,0,0.28);
+}
+.user-avatar-float .user-status-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 11px;
+    height: 11px;
+    background: #22c55e;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.user-avatar-float .dropdown-menu {
+    margin-top: 8px;
+    min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 10070;
 }
