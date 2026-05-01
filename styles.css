@@ -19,10 +19,11 @@ body.app-layout-corridor {
     display: flex;
     flex-direction: row;
     align-items: stretch;
+    overflow-x: auto;
 }
 
 .app-layout-corridor .app-sidebar {
-    width: 189px;
+    width: 142px;
     flex-shrink: 0;
     background: linear-gradient(180deg, #4C1918 0%, #3a1311 100%);
     color: rgba(255, 255, 255, 0.92);
@@ -148,6 +149,8 @@ body.app-layout-corridor .app-main-wrap > .table-page:not(.hidden) {
     display: flex;
     flex-direction: column;
     max-width: none;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
