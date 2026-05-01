@@ -124,30 +124,33 @@ function redirectByRole(role, returnUrl) {
 
 async function checkAuthAndRedirect(isLoginPage = false) {
   await waitForFirebase();
-  const { auth, onAuthStateChanged } = window.firebasePortal;
+  const { auth } = window.firebasePortal;
 
-  return new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      unsub();
-      if (!user) {
-        if (isLoginPage) resolve(null);
-        else window.location.replace('login.html');
-        return;
-      }
-      const role = await getUserRole(user.uid);
-      if (!role) {
-        await auth.signOut();
-        if (isLoginPage) resolve(null);
-        else window.location.replace('login.html');
-        return;
-      }
-      if (isLoginPage) {
-        redirectByRole(role, document.referrer);
-      } else {
-        resolve({ user, role });
-      }
-    });
-  });
+  // Wait for persisted session to restore. The first onAuthStateChanged tick is often
+  // still null; handling only that fires a false "logged out" and sends users to login.
+  if (typeof auth.authStateReady === 'function') {
+    await auth.authStateReady();
+  }
+
+  const user = auth.currentUser;
+
+  if (!user) {
+    if (!isLoginPage) window.location.replace('login.html');
+    return null;
+  }
+
+  const role = await getUserRole(user.uid);
+  if (!role) {
+    await auth.signOut();
+    if (!isLoginPage) window.location.replace('login.html');
+    return null;
+  }
+
+  if (isLoginPage) {
+    redirectByRole(role, document.referrer);
+  }
+
+  return { user, role };
 }
 
 function canAccessPage(role, page) {
