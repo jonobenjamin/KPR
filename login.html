@@ -90,12 +90,10 @@
         (async function() {
             await window.AuthPortal.waitForFirebase();
             const { auth } = window.firebasePortal;
-            if (typeof auth.authStateReady === 'function') {
-                await auth.authStateReady();
-            }
+            const user = await window.AuthPortal.waitForResolvedUser(auth);
 
-            if (auth.currentUser) {
-                const role = await window.AuthPortal.getUserRole(auth.currentUser.uid);
+            if (user) {
+                const role = await window.AuthPortal.getUserRole(user.uid);
                 if (role) {
                     window.AuthPortal.redirectByRole(role);
                     return;
