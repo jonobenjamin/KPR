@@ -99,7 +99,7 @@
 
         .submissions-table {
             width: 100%;
-            min-width: 1100px;
+            min-width: 820px;
             border-collapse: collapse;
         }
 
@@ -364,8 +364,7 @@
             <span class="user-status-dot" aria-hidden="true"></span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userAvatarMenuBtn">
-            <li><a class="dropdown-item" href="#" id="userAvatarProfileLink">Profile</a></li>
-            <li><a class="dropdown-item" href="#">Settings</a></li>
+            <li><a class="dropdown-item" href="profile.html" id="userAvatarProfileLink">Profile</a></li>
             <li><hr class="dropdown-divider" role="presentation"></li>
             <li><a class="dropdown-item" href="#" id="userAvatarSignOut">Log out</a></li>
         </ul>
@@ -462,9 +461,7 @@
                     <thead>
                         <tr>
                             <th class="sortable" data-sort="name">Name <span class="sort-indicator"></span></th>
-                            <th class="sortable" data-sort="email">Email/Phone <span class="sort-indicator"></span></th>
                             <th>Role</th>
-                            <th>Password</th>
                             <th class="sortable" data-sort="status">Status <span class="sort-indicator"></span></th>
                             <th class="sortable" data-sort="registered">Registered <span class="sort-indicator"></span></th>
                             <th class="sortable" data-sort="lastLogin">Last Login <span class="sort-indicator"></span></th>
@@ -513,7 +510,7 @@
 
     <!-- Edit User Modal -->
     <div id="edit-user-modal" class="modal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
-        <div style="background: white; padding: 30px; border-radius: 8px; max-width: 400px; width: 90%;">
+        <div style="background: white; padding: 30px; border-radius: 8px; max-width: 440px; width: 90%; max-height: 90vh; overflow-y: auto;">
             <h3 style="margin: 0 0 20px 0;">Edit User</h3>
             <form id="edit-user-form">
                 <input type="hidden" id="edit-user-id">
@@ -521,6 +518,11 @@
                     <label for="edit-user-name">Name</label>
                     <input type="text" id="edit-user-name" required>
                 </div>
+                <div class="form-group">
+                    <label for="edit-user-contact">Email / Phone</label>
+                    <input type="text" id="edit-user-contact" readonly style="background: #f4f4f4; color: #555;">
+                </div>
+                <p id="edit-password-hint" style="font-size: 13px; color: #666; margin: 0 0 12px 0;"></p>
                 <div class="form-group">
                     <label for="edit-user-role">Role</label>
                     <select id="edit-user-role">
@@ -530,8 +532,12 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="edit-user-password">New Password <span style="color: #999; font-size: 12px;">(leave blank to keep current)</span></label>
-                    <input type="password" id="edit-user-password" minlength="6" placeholder="Min 6 characters">
+                    <label for="edit-user-password-new">New password <span style="color: #999; font-size: 12px;">(optional)</span></label>
+                    <input type="password" id="edit-user-password-new" minlength="6" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label for="edit-user-password-confirm">Confirm new password</label>
+                    <input type="password" id="edit-user-password-confirm" minlength="6" placeholder="Re-enter password">
                 </div>
                 <div id="edit-revoke-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
                     <button type="button" id="edit-revoke-btn" class="btn danger btn-small" style="display: none;">Revoke User</button>
@@ -729,11 +735,11 @@
             const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
             tbody.innerHTML = users.map(user => {
                 const uid = user.id || user.uid || '';
-                const pwdDisplay = user.hasPassword ? '••••••' : '—';
+                const contact = user.email || user.phone || '—';
+                const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 return `
                 <tr>
                     <td>${esc(user.name) || 'N/A'}</td>
-                    <td>${esc(user.email || user.phone) || 'N/A'}</td>
                     <td>
                         <select class="role-select" data-user-id="${uid}" onchange="updateUserRole(this.getAttribute('data-user-id'), this.value)">
                             <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
@@ -741,7 +747,6 @@
                             <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Viewer</option>
                         </select>
                     </td>
-                    <td style="color: #666; user-select: none;">${pwdDisplay}</td>
                     <td><span class="status ${user.status}">${user.status}</span></td>
                     <td>${user.registered ? new Date(user.registered).toLocaleDateString() : 'N/A'}</td>
                     <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never'}</td>
@@ -750,7 +755,7 @@
                     <td>${user.incidents || 0}</td>
                     <td class="total-column">${user.total || 0}</td>
                     <td>
-                        <button class="btn btn-small" onclick="openEditModal(this)" data-user-id="${uid}" data-name="${esc(user.name)}" data-role="${user.role || 'user'}" data-status="${user.status || 'active'}">Edit</button>
+                        <button type="button" class="btn btn-small" onclick="openEditModal(this)" data-user-id="${uid}" data-name="${escAttr(user.name)}" data-role="${user.role || 'user'}" data-status="${user.status || 'active'}" data-contact="${escAttr(contact)}" data-has-password="${user.hasPassword ? '1' : '0'}">Edit</button>
                     </td>
                 </tr>
             `}).join('');
@@ -761,7 +766,6 @@
                 let aVal, bVal;
                 switch (usersSortColumn) {
                     case 'name': aVal = (a.name || '').toLowerCase(); bVal = (b.name || '').toLowerCase(); break;
-                    case 'email': aVal = (a.email || a.phone || '').toLowerCase(); bVal = (b.email || b.phone || '').toLowerCase(); break;
                     case 'status': aVal = (a.status || '').toLowerCase(); bVal = (b.status || '').toLowerCase(); break;
                     case 'registered': aVal = a.registered || ''; bVal = b.registered || ''; break;
                     case 'lastLogin':
@@ -826,10 +830,17 @@
             const name = btn.getAttribute('data-name') || '';
             const role = btn.getAttribute('data-role') || 'user';
             const status = btn.getAttribute('data-status') || 'active';
+            const contact = btn.getAttribute('data-contact') || '—';
+            const hasPwd = btn.getAttribute('data-has-password') === '1';
             document.getElementById('edit-user-id').value = userId;
             document.getElementById('edit-user-name').value = name;
+            document.getElementById('edit-user-contact').value = contact;
             document.getElementById('edit-user-role').value = role;
-            document.getElementById('edit-user-password').value = '';
+            document.getElementById('edit-user-password-new').value = '';
+            document.getElementById('edit-user-password-confirm').value = '';
+            document.getElementById('edit-password-hint').textContent = hasPwd
+                ? 'User has a password for name + password login. Leave new password blank to keep it.'
+                : 'No password on file. Enter a new password to allow name + password login.';
             document.getElementById('edit-revoke-btn').style.display = status === 'active' ? 'inline-block' : 'none';
             document.getElementById('edit-revoke-btn').onclick = () => { revokeUser(userId).then(() => closeEditModal()); };
             document.getElementById('edit-restore-btn').style.display = status === 'revoked' ? 'inline-block' : 'none';
@@ -846,11 +857,20 @@
             const userId = document.getElementById('edit-user-id').value;
             const name = document.getElementById('edit-user-name').value.trim();
             const role = document.getElementById('edit-user-role').value;
-            const password = document.getElementById('edit-user-password').value;
+            const pwd = document.getElementById('edit-user-password-new').value;
+            const pwd2 = document.getElementById('edit-user-password-confirm').value;
 
             const body = { name, role };
-            if (password && password.length >= 6) {
-                body.password = password;
+            if (pwd || pwd2) {
+                if (pwd !== pwd2) {
+                    showAlert('dashboard-alert', 'New password and confirmation do not match', 'danger');
+                    return;
+                }
+                if (pwd.length < 6) {
+                    showAlert('dashboard-alert', 'Password must be at least 6 characters', 'danger');
+                    return;
+                }
+                body.password = pwd;
             }
 
             try {
