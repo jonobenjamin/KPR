@@ -59,8 +59,7 @@
 
     var profile = document.getElementById('userAvatarProfileLink');
     if (profile) {
-      if (user.email) profile.setAttribute('href', 'mailto:' + encodeURI(user.email));
-      else profile.setAttribute('href', '#');
+      profile.setAttribute('href', 'profile.html');
     }
   }
 
