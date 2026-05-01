@@ -345,6 +345,12 @@
             document.getElementById('profile-load').style.display = 'none';
             document.getElementById('profile-content').style.display = 'block';
 
+            try {
+                if (sessionStorage.getItem('kpr_return_after_login') === 'profile.html') {
+                    sessionStorage.removeItem('kpr_return_after_login');
+                }
+            } catch (e) { /* noop */ }
+
             initProfileMap(sightings);
 
             document.getElementById('pwd-form').addEventListener('submit', async function (ev) {
