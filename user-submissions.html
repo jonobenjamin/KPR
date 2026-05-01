@@ -27,8 +27,10 @@
     <style>
         .table-page {
             padding: 20px;
-            max-width: 1400px;
+            width: 100%;
+            max-width: none;
             margin: 0 auto;
+            box-sizing: border-box;
         }
 
         .table-header {
@@ -50,7 +52,9 @@
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
         }
 
         .table-controls {
@@ -95,6 +99,7 @@
 
         .submissions-table {
             width: 100%;
+            min-width: 1100px;
             border-collapse: collapse;
         }
 
@@ -462,7 +467,7 @@
                             <th>Password</th>
                             <th class="sortable" data-sort="status">Status <span class="sort-indicator"></span></th>
                             <th class="sortable" data-sort="registered">Registered <span class="sort-indicator"></span></th>
-                            <th>Last Login</th>
+                            <th class="sortable" data-sort="lastLogin">Last Login <span class="sort-indicator"></span></th>
                             <th class="sortable" data-sort="sightings">Sightings <span class="sort-indicator"></span></th>
                             <th class="sortable" data-sort="maintenance">Maintenance <span class="sort-indicator"></span></th>
                             <th class="sortable" data-sort="incidents">Incidents <span class="sort-indicator"></span></th>
@@ -739,7 +744,7 @@
                     <td style="color: #666; user-select: none;">${pwdDisplay}</td>
                     <td><span class="status ${user.status}">${user.status}</span></td>
                     <td>${user.registered ? new Date(user.registered).toLocaleDateString() : 'N/A'}</td>
-                    <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
+                    <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never'}</td>
                     <td>${user.sightings || 0}</td>
                     <td>${user.maintenance || 0}</td>
                     <td>${user.incidents || 0}</td>
@@ -759,6 +764,10 @@
                     case 'email': aVal = (a.email || a.phone || '').toLowerCase(); bVal = (b.email || b.phone || '').toLowerCase(); break;
                     case 'status': aVal = (a.status || '').toLowerCase(); bVal = (b.status || '').toLowerCase(); break;
                     case 'registered': aVal = a.registered || ''; bVal = b.registered || ''; break;
+                    case 'lastLogin':
+                        aVal = a.lastLogin ? new Date(a.lastLogin).getTime() : 0;
+                        bVal = b.lastLogin ? new Date(b.lastLogin).getTime() : 0;
+                        break;
                     case 'sightings': aVal = a.sightings || 0; bVal = b.sightings || 0; break;
                     case 'maintenance': aVal = a.maintenance || 0; bVal = b.maintenance || 0; break;
                     case 'incidents': aVal = a.incidents || 0; bVal = b.incidents || 0; break;
@@ -956,7 +965,7 @@
                     usersSortDirection = usersSortDirection === 'desc' ? 'asc' : 'desc';
                 } else {
                     usersSortColumn = sortBy;
-                    usersSortDirection = ['sightings','maintenance','incidents','total','registered'].includes(sortBy) ? 'desc' : 'asc';
+                    usersSortDirection = ['sightings','maintenance','incidents','total','registered','lastLogin'].includes(sortBy) ? 'desc' : 'asc';
                 }
                 document.querySelectorAll('#users-table th.sortable').forEach(th => {
                     th.classList.remove('sorted');
