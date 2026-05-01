@@ -40,8 +40,28 @@ async function loginWithPassword(name, password) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'Login failed');
-  const { auth, signInWithCustomToken } = window.firebasePortal;
+  const { auth, signInWithCustomToken, db, doc, getDoc, setDoc, serverTimestamp } = window.firebasePortal;
   await signInWithCustomToken(auth, data.customToken);
+  const user = auth.currentUser;
+  if (user) {
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
+      const base = {
+        uid: user.uid,
+        name: data.name || (snap.exists() ? snap.data().name : '') || '',
+        lastLogin: serverTimestamp()
+      };
+      if (snap.exists()) {
+        const prev = snap.data();
+        await setDoc(userRef, { ...base, ...(prev.email ? { email: prev.email } : {}), ...(prev.phone ? { phone: prev.phone } : {}) }, { merge: true });
+      } else {
+        await setDoc(userRef, { ...base, role: 'viewer', status: 'active' }, { merge: true });
+      }
+    } catch (e) {
+      console.warn('Could not update user doc after password login:', e);
+    }
+  }
   return data;
 }
 
