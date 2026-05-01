@@ -42,6 +42,16 @@
             cursor: pointer;
         }
         .show-weather-btn:hover { text-decoration: underline; }
+        .show-water-quality-btn {
+            display: inline-block;
+            margin-top: 6px;
+            margin-left: 8px;
+            color: #187bcd;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .show-water-quality-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body class="app-layout-corridor">
@@ -554,6 +564,24 @@
             }
         };
 
+        /** Match GeoJSON camp labels (e.g. "Tuludi Camp") to water-monitoring API keys */
+        function campNameToWaterMonitoringKey(campName) {
+            const raw = (campName || '').toLowerCase().replace(/\s+camp\s*$/i, '').trim();
+            if (raw.includes('little sable')) return 'little-sable';
+            if (raw.includes('tuludi')) return 'tuludi';
+            if (raw.includes('sable alley')) return 'sable-alley';
+            return null;
+        }
+
+        function campLocationPopupExtras(campName) {
+            const wk = campNameToWaterMonitoringKey(campName);
+            let html = '<a href="#" class="show-weather-btn">Weather ▸</a>';
+            if (wk) {
+                html += ` <a href="#" class="show-water-quality-btn" data-water-key="${wk}">Water quality ▸</a>`;
+            }
+            return html;
+        }
+
         // Water monitoring markers
         let waterMonitoringMarkers = [];
 
@@ -836,18 +864,32 @@
                     onEachFeature: function(feature, layer) {
                         const campName = feature.properties?.Camps || 'Camp';
                         const latlng = layer.getLatLng();
-                        const initialHtml = `<strong>${campName}</strong><br><em>Camp Location</em><br><a href="#" class="show-weather-btn">Weather ▸</a>`;
+                        const initialHtml = `<strong>${campName}</strong><br><em>Camp Location</em><br>${campLocationPopupExtras(campName)}`;
                         layer.bindPopup(initialHtml);
                         layer.on('popupclose', function() { layer.setPopupContent(initialHtml); });
                         layer.on('popupopen', function() {
-                            const btn = document.querySelector('.leaflet-popup-content .show-weather-btn');
-                            if (btn && !btn.dataset.bound) {
-                                btn.dataset.bound = '1';
-                                btn.addEventListener('click', async function(e) {
-                                    e.preventDefault();
-                                    btn.textContent = 'Loading…';
-                                    const lat = latlng.lat.toFixed(4);
-                                    const lon = latlng.lng.toFixed(4);
+                            const root = layer.getPopup()?.getElement?.();
+                            if (!root || root.dataset.kprCampPopupBound) return;
+                            root.dataset.kprCampPopupBound = '1';
+                            root.addEventListener('click', function(ev) {
+                                const wq = ev.target.closest('.show-water-quality-btn');
+                                if (wq) {
+                                    ev.preventDefault();
+                                    const key = wq.getAttribute('data-water-key');
+                                    if (key && window.showWaterMonitoringGraph) window.showWaterMonitoringGraph(key);
+                                    return;
+                                }
+                                const weather = ev.target.closest('.show-weather-btn');
+                                if (!weather) return;
+                                ev.preventDefault();
+                                weather.textContent = 'Loading…';
+                                const lat = latlng.lat.toFixed(4);
+                                const lon = latlng.lng.toFixed(4);
+                                const wk = campNameToWaterMonitoringKey(campName);
+                                const waterLine = wk
+                                    ? `<br><button type="button" class="chart-open-water-btn" onclick="showWaterMonitoringGraph('${wk}')" style="margin-top:8px;padding:4px 10px;font-size:12px;cursor:pointer;">Water quality trends ▸</button>`
+                                    : '';
+                                (async function() {
                                     try {
                                         const res = await fetch(
                                             `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
@@ -856,12 +898,12 @@
                                         if (!res.ok) throw new Error(res.statusText);
                                         const data = await res.json();
                                         const weatherHtml = formatCampWeather(data);
-                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br>${weatherHtml}`);
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br>${weatherHtml}${waterLine}`);
                                     } catch (err) {
-                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br><em style="color:#c00;">Weather unavailable: ${err.message}</em>`);
+                                        layer.setPopupContent(`<strong>${campName}</strong><br><em>Camp Location</em><br><em style="color:#c00;">Weather unavailable: ${err.message}</em>${waterLine}`);
                                     }
-                                });
-                            }
+                                })();
+                            });
                         });
                     }
                 }).addTo(campsLayer);
@@ -1164,14 +1206,14 @@
                 iconAnchor: [6, 6]
             });
 
-            Object.values(waterMonitoringLocations).forEach(location => {
+            Object.entries(waterMonitoringLocations).forEach(([locationKey, location]) => {
                 const marker = L.marker(location.coords, {
                     icon: waterMonitoringIcon
                 })
                 .bindPopup(`
                     <strong>${location.name}</strong><br>
                     <em>Water Monitoring Location</em><br>
-                    <button onclick="showWaterMonitoringGraph('${location.name.toLowerCase().replace(' ', '-')}')">View Trends</button>
+                    <button type="button" onclick="showWaterMonitoringGraph('${locationKey}')">View Trends</button>
                 `)
                 .addTo(map);
 
