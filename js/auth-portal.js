@@ -7,6 +7,79 @@
 
 const API_BASE = 'https://wildlife-tracker-gxz5.vercel.app';
 
+const KPR_POST_LOGIN_PAGES = {
+  'profile.html': ['admin', 'user', 'viewer'],
+  'map.html': ['admin'],
+  'map-users.html': ['admin', 'user', 'viewer'],
+  'user-submissions.html': ['admin'],
+  'vehicle-tracker.html': ['admin']
+};
+
+function rememberPathForPostLoginRedirect() {
+  try {
+    const page = (typeof location !== 'undefined' ? location.pathname : '').split('/').pop() || '';
+    const base = page.split('?')[0].split('#')[0];
+    if (base && base !== 'login.html' && Object.prototype.hasOwnProperty.call(KPR_POST_LOGIN_PAGES, base)) {
+      sessionStorage.setItem('kpr_return_after_login', base);
+    }
+  } catch (e) {
+    /* noop */
+  }
+}
+
+/** If user landed on login after a guard redirect, send them back to the page they wanted (role-checked). */
+function takePostLoginRedirect(role) {
+  try {
+    const raw = sessionStorage.getItem('kpr_return_after_login');
+    sessionStorage.removeItem('kpr_return_after_login');
+    if (!raw) return null;
+    const name = String(raw).split('/').pop().split('?')[0].split('#')[0];
+    const allowed = KPR_POST_LOGIN_PAGES[name];
+    if (!allowed || !allowed.includes(role)) return null;
+    return name;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Wait until Auth has finished restoring persistence (custom token sessions can lag behind authStateReady).
+ */
+async function waitForResolvedUser(auth, maxWaitMs = 5000) {
+  if (typeof auth.authStateReady === 'function') {
+    await auth.authStateReady();
+  }
+  if (auth.currentUser) return auth.currentUser;
+
+  return new Promise((resolve) => {
+    const deadline = Date.now() + maxWaitMs;
+    let iv = null;
+    let unsub = () => {};
+    const done = (u) => {
+      if (iv != null) {
+        clearInterval(iv);
+        iv = null;
+      }
+      try {
+        unsub();
+      } catch (e) {
+        /* noop */
+      }
+      resolve(u || null);
+    };
+    unsub = auth.onAuthStateChanged((u) => {
+      if (u) done(u);
+    });
+    iv = setInterval(() => {
+      if (auth.currentUser) {
+        done(auth.currentUser);
+        return;
+      }
+      if (Date.now() >= deadline) done(null);
+    }, 100);
+  });
+}
+
 async function waitForFirebase() {
   return new Promise((resolve) => {
     const check = () => {
@@ -111,6 +184,11 @@ async function signInWithPin(email, pin) {
 }
 
 function redirectByRole(role, returnUrl) {
+  const next = takePostLoginRedirect(role);
+  if (next) {
+    window.location.href = next;
+    return;
+  }
   if (role === 'admin') {
     if (returnUrl && returnUrl.includes('user-submissions')) {
       window.location.href = 'user-submissions.html';
@@ -126,23 +204,23 @@ async function checkAuthAndRedirect(isLoginPage = false) {
   await waitForFirebase();
   const { auth } = window.firebasePortal;
 
-  // Wait for persisted session to restore. The first onAuthStateChanged tick is often
-  // still null; handling only that fires a false "logged out" and sends users to login.
-  if (typeof auth.authStateReady === 'function') {
-    await auth.authStateReady();
-  }
-
-  const user = auth.currentUser;
+  const user = await waitForResolvedUser(auth);
 
   if (!user) {
-    if (!isLoginPage) window.location.replace('login.html');
+    if (!isLoginPage) {
+      rememberPathForPostLoginRedirect();
+      window.location.replace('login.html');
+    }
     return null;
   }
 
   const role = await getUserRole(user.uid);
   if (!role) {
     await auth.signOut();
-    if (!isLoginPage) window.location.replace('login.html');
+    if (!isLoginPage) {
+      rememberPathForPostLoginRedirect();
+      window.location.replace('login.html');
+    }
     return null;
   }
 
@@ -161,12 +239,14 @@ function canAccessPage(role, page) {
 
 window.AuthPortal = {
   waitForFirebase,
+  waitForResolvedUser,
   getUserRole,
   loginWithPassword,
   requestPin,
   verifyPin,
   signInWithPin,
   redirectByRole,
+  takePostLoginRedirect,
   checkAuthAndRedirect,
   canAccessPage
 };
