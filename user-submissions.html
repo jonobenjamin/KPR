@@ -376,10 +376,11 @@
             <span class="app-sidebar-title">KPR<br>Monitoring</span>
         </div>
         <nav class="app-sidebar-nav">
-            <a href="map.html" class="app-sidebar-link">Concession Map</a>
             <a href="user-submissions.html" class="app-sidebar-link is-active" aria-current="page">Admin Panel</a>
             <a href="vehicle-tracker.html" class="app-sidebar-link">Vehicle Tracker</a>
-            <a href="https://jonobenjamin.github.io/KPR_PWA_TEST/" target="_blank" rel="noopener noreferrer" class="app-sidebar-link">Submit Data</a>
+            <a href="reporting.html" class="app-sidebar-link">Reports</a>
+            <a href="map.html" class="app-sidebar-link">Concession Map</a>
+            <a href="https://jonobenjamin.github.io/KPR_PWA/" target="_blank" rel="noopener noreferrer" class="app-sidebar-link">Submit Data</a>
         </nav>
     </aside>
 
@@ -739,7 +740,7 @@
                 const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 return `
                 <tr>
-                    <td>${esc(user.name) || 'N/A'}</td>
+                    <td><a href="reporting.html?user=${encodeURIComponent(user.name || '')}" style="color:#2c3e50;font-weight:600;text-decoration:none;" onmouseover="this.style.color='#3498db'" onmouseout="this.style.color='#2c3e50'" title="View report for ${esc(user.name)}">${esc(user.name) || 'N/A'}</a></td>
                     <td>
                         <select class="role-select" data-user-id="${uid}" onchange="updateUserRole(this.getAttribute('data-user-id'), this.value)">
                             <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
