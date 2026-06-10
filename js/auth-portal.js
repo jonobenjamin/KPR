@@ -12,7 +12,8 @@ const KPR_POST_LOGIN_PAGES = {
   'map.html': ['admin'],
   'map-users.html': ['admin', 'user', 'viewer'],
   'user-submissions.html': ['admin'],
-  'vehicle-tracker.html': ['admin']
+  'vehicle-tracker.html': ['admin'],
+  'reporting.html': ['admin']
 };
 
 function rememberPathForPostLoginRedirect() {
