@@ -29,7 +29,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
     <style>
         /* ── Page layout ─────────────────────────────────────── */
@@ -123,6 +123,7 @@
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .chart-empty { text-align: center; color: #adb5bd; font-size: 13px; padding: 60px 0; }
         .chart-click-hint { text-align: center; font-size: 11px; color: #adb5bd; margin-top: 6px; }
+        #report-content.is-exporting .chart-click-hint { display: none; }
 
         /* ── Bottom panels (top5 + vehicles) ─────────────────── */
         .bottom-panels {
@@ -371,7 +372,7 @@
                         <div class="stat-card orange"><span class="stat-number" id="stat-maintenance">0</span><div class="stat-label">Maintenance</div></div>
                         <div class="stat-card red"><span class="stat-number" id="stat-incidents">0</span><div class="stat-label">Incidents</div></div>
                         <div class="stat-card green"><span class="stat-number" id="stat-km">0</span><div class="stat-label">Total km Driven</div></div>
-                        <div class="stat-card purple"><span class="stat-number" id="stat-users">0</span><div class="stat-label">Active Users</div></div>
+                        <div class="stat-card purple" id="stat-users-card"><span class="stat-number" id="stat-users">0</span><div class="stat-label">Active Users</div></div>
                     </div>
 
                     <!-- 2×2 Charts grid -->
@@ -415,7 +416,7 @@
                     </div>
 
                     <!-- Users table -->
-                    <div class="table-section">
+                    <div class="table-section" id="users-activity-section">
                         <h4>User Activity Summary</h4>
                         <div style="overflow-x:auto">
                             <table class="users-report-table" id="users-report-table">
@@ -918,11 +919,18 @@
             }).join('');
         }
 
+        function updateUserSpecificSections() {
+            const userFiltered = !!getSelectedUser();
+            document.getElementById('stat-users-card').style.display = userFiltered ? 'none' : '';
+            document.getElementById('users-activity-section').style.display = userFiltered ? 'none' : '';
+        }
+
         /* ── Full page render ─────────────────────────────────── */
         function renderPage() {
             const obs      = filterObs();
             const tracking = filterTracking();
             updateTitle();
+            updateUserSpecificSections();
             renderStats(obs, tracking);
             // Reset chart canvas wrappers in case they were replaced by "no data" messages
             ['chart-overall','chart-species','chart-incidents','chart-maintenance'].forEach(id => {
@@ -943,36 +951,110 @@
             renderUsersTable(obs);
         }
 
+        function sanitizeFilename(title) {
+            return title.replace(/[<>:"/\\|?*]+/g, '-').replace(/\s+/g, ' ').trim() + '.pdf';
+        }
+
+        function swapChartsForImages() {
+            const replacements = [];
+            Object.entries(chartInstances).forEach(([id, chart]) => {
+                if (!chart) return;
+                const canvas = document.getElementById(id);
+                if (!canvas || !canvas.isConnected) return;
+                const img = document.createElement('img');
+                img.src = chart.toBase64Image('image/png', 1);
+                img.alt = id;
+                img.style.maxWidth = '240px';
+                img.style.height = 'auto';
+                img.style.display = 'block';
+                img.style.margin = '0 auto';
+                const parent = canvas.parentElement;
+                parent.replaceChild(img, canvas);
+                replacements.push({ parent, canvas, img });
+            });
+            return replacements;
+        }
+
+        function restoreChartsFromImages(replacements) {
+            replacements.forEach(({ parent, canvas, img }) => {
+                if (parent && img.isConnected) parent.replaceChild(canvas, img);
+            });
+        }
+
+        async function savePdfBlob(blob, filename) {
+            if (window.showSaveFilePicker) {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: filename,
+                    types: [{ description: 'PDF document', accept: { 'application/pdf': ['.pdf'] } }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
         /* ── PDF export ───────────────────────────────────────── */
         async function exportPDF() {
+            if (typeof html2pdf !== 'function') {
+                alert('PDF export library failed to load. Please refresh the page and try again.');
+                return;
+            }
+
             const title   = buildTitle();
+            const filename = sanitizeFilename(title);
             const pdfEl   = document.getElementById('pdf-header');
             const titleEl = document.getElementById('pdf-title-text');
             const dateEl  = document.getElementById('pdf-generated-date');
+            const content = document.getElementById('report-content');
+            const btn = document.getElementById('export-pdf-btn');
+            const exportBtnHtml = btn.innerHTML;
+
             titleEl.textContent = title;
             dateEl.textContent  = `Generated: ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}`;
             pdfEl.style.display = '';
+            content.classList.add('is-exporting');
 
-            const btn = document.getElementById('export-pdf-btn');
-            btn.disabled    = true;
-            btn.textContent = 'Exporting…';
+            let chartReplacements = [];
+            btn.disabled = true;
+            btn.textContent = 'Preparing PDF…';
 
-            const content = document.getElementById('report-content');
-            await html2pdf()
-                .set({
-                    margin: [12, 10, 12, 10],
-                    filename: title + '.pdf',
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: ['avoid-all', 'css'] }
-                })
-                .from(content)
-                .save();
+            try {
+                chartReplacements = swapChartsForImages();
+                btn.textContent = 'Choose save location…';
 
-            pdfEl.style.display = 'none';
-            btn.disabled    = false;
-            btn.innerHTML   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg> Export PDF`;
+                const blob = await html2pdf()
+                    .set({
+                        margin: [12, 10, 12, 10],
+                        filename,
+                        image: { type: 'jpeg', quality: 0.95 },
+                        html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0 },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['css', 'legacy'] }
+                    })
+                    .from(content)
+                    .outputPdf('blob');
+
+                await savePdfBlob(blob, filename);
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+                console.error('PDF export failed:', err);
+                alert('PDF export failed. Please try again.');
+            } finally {
+                restoreChartsFromImages(chartReplacements);
+                pdfEl.style.display = 'none';
+                content.classList.remove('is-exporting');
+                btn.disabled = false;
+                btn.innerHTML = exportBtnHtml;
+            }
         }
 
         /* ── Event listeners ──────────────────────────────────── */
